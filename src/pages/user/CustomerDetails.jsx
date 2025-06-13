@@ -239,6 +239,6 @@ const CustomerDetails = () => {
       </main>
     </div>
   );
-};
+}; 
 
 export default CustomerDetails;
