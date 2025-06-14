@@ -53,7 +53,7 @@ const Payment = () => {
   const handlePayment = async () => {
     setIsLoading(true);
 
-    // If amount is 0, skip Razorpay
+    // If amount is 0 or less, skip Razorpay
     if (finalAmount <= 0) {
       const newPolicy = createPolicy();
       navigate('/confirmation', { state: { policy: newPolicy } });
@@ -80,7 +80,8 @@ const Payment = () => {
       const orderResponse = await fetch(`${backendUrl}/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: finalAmount * 100 }), // Razorpay expects amount in paisa
+        // --- FIX: Removed * 100 here. Frontend now sends amount in Rupees. ---
+        body: JSON.stringify({ amount: finalAmount }),
       });
 
       if (!orderResponse.ok) {
@@ -109,7 +110,7 @@ const Payment = () => {
         prefill: {
           name: currentPolicy.customerName,
           email: currentPolicy.email || 'customer@example.com', // Use customer's email or a fallback
-          contact: currentPolicy.phoneNumber, // Use customer's phone number!
+          contact: currentPolicy.phoneNumber, // Use customer's phone number from context!
         },
         theme: {
           color: '#528FF0',
