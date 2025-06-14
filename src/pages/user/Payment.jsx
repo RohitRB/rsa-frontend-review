@@ -98,7 +98,8 @@ const Payment = () => {
       }
 
       const orderData = await orderResponse.json();
-      console.log("Razorpay Order Data from Backend:", orderData);
+      // MODIFIED LOG: Stringify for full output
+      console.log("Razorpay Order Data from Backend:", JSON.stringify(orderData, null, 2));
 
       const options = {
         key: 'rzp_live_yYGWUPovOauhOx',
@@ -155,7 +156,8 @@ const Payment = () => {
         },
       };
 
-      console.log("Razorpay Options being sent:", options);
+      // MODIFIED LOG: Stringify for full output
+      console.log("Razorpay Options being sent:", JSON.stringify(options, null, 2));
       const paymentObject = new window.Razorpay(options);
       paymentObject.open();
     } catch (error) {
