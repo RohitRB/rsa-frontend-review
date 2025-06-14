@@ -11,17 +11,14 @@ const Payment = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false); // New state to track script loading
 
-  // --- START Changes for GST Calculation ---
   // No GST calculation needed if price is inclusive
   const finalAmount = currentPolicy.amount; // Price is now inclusive of all taxes
-  // --- END Changes for GST Calculation ---
 
   useEffect(() => {
     if (!currentPolicy.policyType || !currentPolicy.customerName) {
       navigate('/');
     }
 
-    // --- START Change for Razorpay Script Loading ---
     // Load Razorpay script once on component mount
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -37,32 +34,30 @@ const Payment = () => {
 
     // Cleanup script on unmount
     return () => {
-      // Check if the script exists before trying to remove it
       const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
       if (existingScript && document.body.contains(existingScript)) {
         document.body.removeChild(existingScript);
       }
     };
-    // --- END Change for Razorpay Script Loading ---
-
   }, [currentPolicy, navigate]);
 
   const handleBack = () => {
     navigate('/customer-details');
   };
 
-  // --- START TEMPORARY DEBUGGING LOG ---
+  // --- TEMPORARY DEBUGGING LOG ---
+  // This log will show the currentPolicy object's state right before payment is initiated.
   console.log("Current Policy Data (before payment button click):", currentPolicy);
   // --- END TEMPORARY DEBUGGING LOG ---
 
   const handlePayment = async () => {
     setIsLoading(true);
 
-    // ✅ If amount is 0, skip Razorpay
-    if (finalAmount <= 0) { // Use finalAmount here
+    // If amount is 0, skip Razorpay
+    if (finalAmount <= 0) {
       const newPolicy = createPolicy();
       navigate('/confirmation', { state: { policy: newPolicy } });
-      setIsLoading(false); // Ensure loading state is reset
+      setIsLoading(false);
       return;
     }
 
@@ -74,7 +69,6 @@ const Payment = () => {
     }
 
     try {
-      // Using Vercel environment variable for backend URL (from previous steps)
       const backendUrl = import.meta.env.VITE_APP_BACKEND_URL;
       if (!backendUrl) {
         console.error('VITE_APP_BACKEND_URL is not defined!');
@@ -83,11 +77,9 @@ const Payment = () => {
         return;
       }
 
-      const orderResponse = await fetch(`${backendUrl}/create-order`, { // Use backendUrl
+      const orderResponse = await fetch(`${backendUrl}/create-order`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: finalAmount * 100 }), // Razorpay expects amount in paisa
       });
 
@@ -106,9 +98,6 @@ const Payment = () => {
         description: 'Policy Purchase',
         order_id: orderData.id,
         handler: function (response) {
-          // --- START Change for payment success handling ---
-          // Call createPolicy here after successful payment
-          // newPolicy will be further saved to Firestore in a later step
           const newPolicy = createPolicy(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature);
           navigate('/confirmation', {
             state: {
@@ -116,7 +105,6 @@ const Payment = () => {
               paymentStatus: 'success', // Pass status for confirmation page
             },
           });
-          // --- END Change for payment success handling ---
         },
         prefill: {
           name: currentPolicy.customerName,
@@ -168,17 +156,9 @@ const Payment = () => {
                   <span>{currentPolicy.policyType}</span>
                   <span>₹{currentPolicy.amount}</span>
                 </div>
-                {/* --- START Changes for GST Display --- */}
-                {/* Remove GST display if price is inclusive
-                <div className="flex justify-between text-gray-600">
-                  <span>GST (18%)</span>
-                  <span>₹{gstAmount}</span>
-                </div>
-                */}
-                {/* --- END Changes for GST Display --- */}
                 <div className="border-t pt-3 mt-3 flex justify-between font-bold">
                   <span>Total</span>
-                  <span>₹{finalAmount}</span> {/* Use finalAmount here */}
+                  <span>₹{finalAmount}</span>
                 </div>
               </div>
             </div>
@@ -196,7 +176,7 @@ const Payment = () => {
 
               <button
                 onClick={handlePayment}
-                disabled={isLoading || !isScriptLoaded} // Disable if script not loaded
+                disabled={isLoading || !isScriptLoaded}
                 className={`w-full py-3 rounded-md text-white font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50
                   ${isLoading || !isScriptLoaded ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
               >
@@ -219,11 +199,7 @@ const Payment = () => {
                       <path
                         className="opacity-75"
                         fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 
-                        0 0 5.373 0 12h4zm2 
-                        5.291A7.962 7.962 0 014 
-                        12H0c0 3.042 1.135 5.824 3 
-                        7.938l3-2.647z"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
                     Processing...
