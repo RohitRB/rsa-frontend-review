@@ -1,4 +1,4 @@
-import React, { useSstate, useEffect } from 'react'; // FIXED SYNTAX: Changed '=> {' to 'from 'react';'
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import Stepper from '../../components/Stepper';
@@ -35,7 +35,7 @@ const Payment = () => {
     document.body.appendChild(script);
 
     return () => {
-      const existingScript = document.querySelector('script[src="https://chckout.razorpay.com/v1/checkout.js"]');
+      const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
       if (existingScript && document.body.contains(existingScript)) {
         document.body.removeChild(existingScript);
       }
@@ -248,54 +248,11 @@ const Payment = () => {
                 </button>
               </div>
             </div>
-            </div>
           </div>
-        </main>
-      </div>
-      );
-    };
+        </div>
+      </main>
+    </div>
+  );
+};
 
-    export default Payment;
-```
-
-I understand you're ready to push. Here are the commands:
-
-1.  **Navigate to your frontend project's root directory** in your Git Bash (or terminal).
-    *(Ensure you are in the correct frontend folder, e.g., `D:\Documents\Tech EX Yash\IT Clients\Kalyan Enterprises - Car Workshop\RSA\rsa-frontend-app`)*.
-
-2.  **Add the modified file to the staging area:**
-    ```bash
-    git add src/pages/user/Payment.jsx
-    ```
-
-3.  **Commit your changes with a descriptive message:**
-    ```bash
-    git commit -m "Frontend: Syntax fix in Payment.jsx import statement, plus Razorpay script loading debug logs"
-    ```
-
-4.  **Push the changes to your GitHub repository (assuming your frontend branch is `main`):**
-    ```bash
-    git push origin main
-    ```
-
----
-
-**After you push these changes, Vercel will automatically detect them and start a new deployment for your frontend service.** Please monitor its progress in your Vercel dashboard.
-
-**Once this Vercel frontend deployment is "Ready" or "Complete," please proceed with the debugging steps again, paying very close attention to the console output.** We need to see if the Razorpay script is now loading correctly and enabling the button.
-
-1.  **Open your Vercel-deployed frontend in a brand new Incognito/Private window.**
-2.  Navigate through: `Select Policy` (choose the ₹1 Standard Coverage) -> `Customer Details` (fill valid info) -> `Payment` page.
-3.  **Open your browser's Developer Tools (`F12` or Right-click -> "Inspect").** Go to the **"Console" tab.**
-
-**Now, please report the exact output you see in the "Console" tab, paying close attention to these new logs:**
-
-* `"Attempting to load Razorpay script..."`
-* `"Razorpay script loaded successfully!"` (This is the one we hope to see!)
-* `"Razorpay script failed to load!"` (If this appears, please copy any associated error message).
-* `"isScriptLoaded state:"` (What value does this show, *before* you click "Pay" and *after* the page loads?)
-* `"handlePayment function triggered."` (Does this appear *after* you click "Pay"?)
-
-Also, if you click the "Pay" button and the popup *still* doesn't fully work, please check the **Network tab** again for the `POST /create-order` request and provide its **Status Code** and **Response** body.
-
-This information is crucial to understand if the script is failing to load, preventing the button from being enabled, or if something else is going wrong even after `handlePayment` is call
+export default Payment;
