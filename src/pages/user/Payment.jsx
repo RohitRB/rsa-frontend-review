@@ -37,15 +37,23 @@ const Payment = () => {
 
     // Cleanup script on unmount
     return () => {
-      document.body.removeChild(script);
+      // Check if the script exists before trying to remove it
+      const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+      if (existingScript && document.body.contains(existingScript)) {
+        document.body.removeChild(existingScript);
+      }
     };
     // --- END Change for Razorpay Script Loading ---
 
-  }, [currentPolicy, navigate]); // Removed loadRazorpayScript dependency as it's now internal
+  }, [currentPolicy, navigate]);
 
   const handleBack = () => {
     navigate('/customer-details');
   };
+
+  // --- START TEMPORARY DEBUGGING LOG ---
+  console.log("Current Policy Data (before payment button click):", currentPolicy);
+  // --- END TEMPORARY DEBUGGING LOG ---
 
   const handlePayment = async () => {
     setIsLoading(true);
@@ -100,6 +108,7 @@ const Payment = () => {
         handler: function (response) {
           // --- START Change for payment success handling ---
           // Call createPolicy here after successful payment
+          // newPolicy will be further saved to Firestore in a later step
           const newPolicy = createPolicy(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature);
           navigate('/confirmation', {
             state: {
@@ -111,8 +120,8 @@ const Payment = () => {
         },
         prefill: {
           name: currentPolicy.customerName,
-          email: currentPolicy.customerEmail || 'customer@example.com', // Use customer's email or a fallback
-          contact: currentPolicy.customerPhone, // Use customer's phone number!
+          email: currentPolicy.email || 'customer@example.com', // Use customer's email or a fallback
+          contact: currentPolicy.phoneNumber, // Use customer's phone number!
         },
         theme: {
           color: '#528FF0',
