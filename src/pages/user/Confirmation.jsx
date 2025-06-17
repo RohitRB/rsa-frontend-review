@@ -104,8 +104,8 @@ const Confirmation = () => {
         ['Duration', policy.duration || 'N/A'],
         ['Amount Paid', `₹${policy.amount ? policy.amount.toLocaleString() : '0'}`],
         // Ensure these dates are formatted. The 'policy' object should have Date objects from PolicyContext.
-        ['Start Date', policy.startDate ? format(new Date(policy.startDate), 'dd MMMM yyyy') : 'N/A'],
-        ['Expiry Date', policy.expiryDate ? format(new Date(policy.expiryDate), 'dd MMMM yyyy') : 'N/A'],
+        ['Start Date', policy.startDate ? format(new Date(policy.startDate), 'dd MMMMyyyy') : 'N/A'],
+        ['Expiry Date', policy.expiryDate ? format(new Date(policy.expiryDate), 'dd MMMMyyyy') : 'N/A'],
         ['Status', policy.status || 'N/A']
       ],
       theme: 'striped',
@@ -196,7 +196,7 @@ const Confirmation = () => {
                 <p><strong className="text-gray-600">Valid Until:</strong> {policy.expiryDate ? format(new Date(policy.expiryDate), 'dd/MM/yyyy') : 'N/A'}</p>
                 <p><strong className="text-gray-600">Status:</strong> {policy.status || 'N/A'}</p>
               </div>
-            </div>
+              </div>
 
             {/* Customer Details */}
             <div className="bg-gray-50 p-4 rounded-md shadow-sm">

@@ -30,7 +30,7 @@ export const PolicyProvider = ({ children }) => {
     initRef.current = true;
 
     try {
-      // --- FIX: Read Firebase config from Vercel-compatible environment variable ---
+      // --- CRITICAL FIX: Read Firebase config from Vercel-compatible environment variable ---
       const firebaseConfigString = import.meta.env.VITE_APP_FIREBASE_CONFIG;
       let firebaseConfig;
 
@@ -39,16 +39,16 @@ export const PolicyProvider = ({ children }) => {
           firebaseConfig = JSON.parse(firebaseConfigString);
         } catch (parseError) {
           console.error("Error parsing VITE_APP_FIREBASE_CONFIG environment variable:", parseError);
+          // If parsing fails, firebaseConfig remains undefined/null, which will trigger the !firebaseConfig check below
         }
       } else {
-        console.error("VITE_APP_FIREBASE_CONFIG is not set in environment variables.");
-        // Fallback to __firebase_config for Canvas/local dev if not using Vercel env
-        // THIS FALLBACK IS FOR THE LOCAL DEV ENVIRONMENT (like in Canvas)
+        console.error("VITE_APP_FIREBASE_CONFIG is NOT set in Vercel environment variables. Using Canvas fallback (if available).");
+        // Fallback to __firebase_config for Canvas or local dev if not using Vercel env
         firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
       }
 
-      if (!firebaseConfig) {
-        console.error("Firebase config is ultimately not available. Cannot initialize Firebase.");
+      if (!firebaseConfig || !firebaseConfig.apiKey) { // Added check for apiKey existence
+        console.error("Firebase config is ultimately not available or incomplete. Cannot initialize Firebase.");
         return;
       }
 
@@ -116,10 +116,10 @@ export const PolicyProvider = ({ children }) => {
         return {
           id: doc.id,
           ...data,
-          // Convert Firestore Timestamps to JavaScript Date objects
+          // Convert Firestore Timestamps to JavaScript Date objects for consistent frontend use
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || null),
-          startDate: data.startDate?.toDate ? data.startDate.toDate() : (data.startDate || null),
-          expiryDate: data.expiryDate?.toDate ? data.expiryDate.toDate() : (data.expiryDate || null),
+          startDate: data.startDate ? new Date(data.startDate) : null, // Assuming backend sends string
+          expiryDate: data.expiryDate ? new Date(data.expiryDate) : null, // Assuming backend sends string
         };
       });
       setPolicies(fetchedPolicies);
@@ -236,17 +236,17 @@ export const PolicyProvider = ({ children }) => {
 
       if (response.ok && data.success) {
         console.log('✅ Backend verification successful. Policy and Customer saved to Firestore.');
-        setCurrentPolicy({}); // Clear current policy after successful creation
+        setCurrentPolicy({}); // Clear current policy after successful creation for next flow
 
         // Return the data needed for Confirmation page,
         // NOW ENSURING CUSTOMER DETAILS ARE INCLUDED FROM currentPolicy
         return {
           ...policyDataToSend,
-          ...customerDataToSend, // <<--- IMPORTANT: MERGE customerDataToSend HERE
+          ...customerDataToSend, // <<< THIS IS THE CRITICAL LINE TO ENSURE CUSTOMER DATA IS PASSED
           status: 'Active',
           firestorePolicyId: data.policyId,
           firestoreCustomerId: data.customerId,
-          createdAt: today,
+          createdAt: today, // Pass original Date objects for consistent formatting in Confirmation.jsx
           startDate: today,
           expiryDate: expiryDate
         };
@@ -330,8 +330,6 @@ export const PolicyProvider = ({ children }) => {
       }
     } catch (error) {
       console.error("Error deleting policy from Firestore:", error);
-      // Instead of alert, use a custom message box or toast
-      // alert("Failed to delete policy: " + error.message);
     }
   };
 
@@ -347,7 +345,6 @@ export const PolicyProvider = ({ children }) => {
       console.log("Policy successfully updated in Firestore!");
     } catch (error) {
       console.error("Error updating policy in Firestore:", error);
-      // alert("Failed to update policy: " + error.message);
     }
   };
 
@@ -363,7 +360,6 @@ export const PolicyProvider = ({ children }) => {
       // onSnapshot listener will automatically update local state
     } catch (error) {
       console.error("Error deleting customer from Firestore:", error);
-      // alert("Failed to delete customer: " + error.message);
     }
   };
 
@@ -379,7 +375,6 @@ export const PolicyProvider = ({ children }) => {
       console.log("Customer successfully updated in Firestore!");
     } catch (error) {
       console.error("Error updating customer in Firestore:", error);
-      // alert("Failed to update customer: " + error.message);
     }
   };
 
@@ -392,7 +387,7 @@ export const PolicyProvider = ({ children }) => {
         currentPolicy,
         selectPolicy,
         updateCustomerDetails,
-        verifyPaymentAndCreatePolicy, // Export the new function that talks to backend/Firestore
+        verifyPaymentAndCreatePolicy,
         getPolicyById,
         deletePolicy, // Expose Firestore delete
         updatePolicyInFirestore, // Expose Firestore update
