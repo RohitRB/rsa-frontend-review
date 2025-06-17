@@ -1,7 +1,7 @@
 // src/context/PolicyContext.jsx
 
 import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
-import { format, addYears, addDays, isBefore } from 'date-fns';
+import { format, addYears } from 'date-fns'; // Using addYears from date-fns for calculations
 
 // Import Firebase Client SDK functions
 import { initializeApp } from 'firebase/app';
@@ -19,7 +19,7 @@ export const PolicyProvider = ({ children }) => {
   const [userId, setUserId] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false); // To ensure auth is ready before Firestore ops
 
-  // Policies and Customers state (now from Firestore)
+  // Policies and Customers state (now fetched directly from Firestore)
   const [policies, setPolicies] = useState([]);
   const [customers, setCustomers] = useState([]);
   const initRef = useRef(false); // To ensure Firebase init runs only once
@@ -42,8 +42,9 @@ export const PolicyProvider = ({ children }) => {
           // If parsing fails, firebaseConfig remains undefined/null, which will trigger the !firebaseConfig check below
         }
       } else {
-        console.error("VITE_APP_FIREBASE_CONFIG is NOT set in Vercel environment variables. Using Canvas fallback (if available).");
+        console.error("VITE_APP_FIREBASE_CONFIG is NOT set in Vercel environment variables. Attempting Canvas fallback (if available).");
         // Fallback to __firebase_config for Canvas or local dev if not using Vercel env
+        // This allows it to work in the Canvas environment but emphasizes the Vercel config need.
         firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
       }
 
@@ -88,7 +89,7 @@ export const PolicyProvider = ({ children }) => {
           setUserId(null);
           console.log("Auth state changed, no user.");
         }
-        setIsAuthReady(true);
+        setIsAuthReady(true); // Mark auth as ready once initial check is done
       });
 
       return () => unsubscribeAuth();
@@ -98,10 +99,10 @@ export const PolicyProvider = ({ children }) => {
   }, []);
 
 
-  // 2. Real-time Listeners for Policies and Customers (after auth is ready)
+  // 2. Real-time Listeners for Policies and Customers (after auth is ready and DB is set)
   useEffect(() => {
     if (!db || !isAuthReady || !userId) {
-      console.log("Firestore or Auth not ready, skipping data listeners.");
+      console.log("Firestore DB, Auth state, or User ID not ready, skipping data listeners.");
       return;
     }
 
@@ -114,12 +115,12 @@ export const PolicyProvider = ({ children }) => {
       const fetchedPolicies = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
-          id: doc.id,
+          id: doc.id, // Firestore document ID
           ...data,
           // Convert Firestore Timestamps to JavaScript Date objects for consistent frontend use
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || null),
-          startDate: data.startDate ? new Date(data.startDate) : null, // Assuming backend sends string
-          expiryDate: data.expiryDate ? new Date(data.expiryDate) : null, // Assuming backend sends string
+          startDate: data.startDate ? new Date(data.startDate) : null, // Assuming backend sends string 'yyyy-MM-dd'
+          expiryDate: data.expiryDate ? new Date(data.expiryDate) : null, // Assuming backend sends string 'yyyy-MM-dd'
         };
       });
       setPolicies(fetchedPolicies);
@@ -133,7 +134,7 @@ export const PolicyProvider = ({ children }) => {
       const fetchedCustomers = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
-          id: doc.id,
+          id: doc.id, // Firestore document ID
           ...data,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || null),
           updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (data.updatedAt || null),
@@ -151,9 +152,9 @@ export const PolicyProvider = ({ children }) => {
     };
   }, [db, isAuthReady, userId]);
 
-  // Current policy being created/purchased (unchanged)
+  // Current policy being created/purchased (temporary state for form inputs)
   const [currentPolicy, setCurrentPolicy] = useState({
-    id: '',
+    id: '', // Policy plan ID (e.g., Standard_Coverage)
     policyType: '',
     amount: 0,
     originalPrice: 0,
@@ -167,7 +168,7 @@ export const PolicyProvider = ({ children }) => {
     termsAccepted: false
   });
 
-  // Select policy (unchanged)
+  // Select policy (from PolicyPlans.jsx)
   const selectPolicy = (id, policyType, amount, duration, originalPrice) => {
     setCurrentPolicy(prev => ({
       ...prev,
@@ -179,7 +180,7 @@ export const PolicyProvider = ({ children }) => {
     }));
   };
 
-  // Update customer details (unchanged)
+  // Update customer details (from CustomerDetails.jsx)
   const updateCustomerDetails = (details) => {
     setCurrentPolicy(prev => ({
       ...prev,
@@ -187,7 +188,8 @@ export const PolicyProvider = ({ children }) => {
     }));
   };
 
-  // Verify payment and create policy - FIX FOR CONFIRMATION PAGE DATA
+  // Verify payment with backend and save policy/customer to Firestore
+  // This function is called by Payment.jsx after Razorpay completes
   const verifyPaymentAndCreatePolicy = async (paymentId, orderId, signature) => {
     const backendUrl = import.meta.env.VITE_APP_BACKEND_URL;
     if (!backendUrl) {
@@ -199,15 +201,16 @@ export const PolicyProvider = ({ children }) => {
     const durationInYears = parseInt(currentPolicy.duration.split(' ')[0]) || 1;
     const expiryDate = addYears(today, durationInYears);
 
+    // Data to send to backend for saving
     const policyDataToSend = {
-      id: currentPolicy.id,
-      policyNumber: `RSA-${format(today, 'yyMMddHHmmss')}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
+      id: currentPolicy.id, // This is the plan ID (e.g., 'standard')
+      policyNumber: `RSA-${format(today, 'yyMMddHHmmss')}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`, // Unique policy number
       policyType: currentPolicy.policyType,
       amount: currentPolicy.amount,
       originalPrice: currentPolicy.originalPrice || currentPolicy.amount,
       duration: currentPolicy.duration,
-      startDate: format(today, 'yyyy-MM-dd'),
-      expiryDate: format(expiryDate, 'yyyy-MM-dd'),
+      startDate: format(today, 'yyyy-MM-dd'), // Format date as string for backend/Firestore
+      expiryDate: format(expiryDate, 'yyyy-MM-dd'), // Format date as string for backend/Firestore
     };
 
     const customerDataToSend = {
@@ -236,17 +239,17 @@ export const PolicyProvider = ({ children }) => {
 
       if (response.ok && data.success) {
         console.log('✅ Backend verification successful. Policy and Customer saved to Firestore.');
-        setCurrentPolicy({}); // Clear current policy after successful creation for next flow
+        setCurrentPolicy({}); // Clear current policy state after successful creation
 
-        // Return the data needed for Confirmation page,
-        // NOW ENSURING CUSTOMER DETAILS ARE INCLUDED FROM currentPolicy
+        // Return the complete policy object for the Confirmation page
         return {
           ...policyDataToSend,
-          ...customerDataToSend, // <<< THIS IS THE CRITICAL LINE TO ENSURE CUSTOMER DATA IS PASSED
+          ...customerDataToSend, // <<< CRITICAL: Ensure customer data is merged here
           status: 'Active',
-          firestorePolicyId: data.policyId,
-          firestoreCustomerId: data.customerId,
-          createdAt: today, // Pass original Date objects for consistent formatting in Confirmation.jsx
+          firestorePolicyId: data.policyId, // Firestore document ID for the policy
+          firestoreCustomerId: data.customerId, // Firestore document ID for the customer
+          // Convert back to Date objects for consistent use in frontend components like Confirmation.jsx
+          createdAt: today,
           startDate: today,
           expiryDate: expiryDate
         };
@@ -257,6 +260,73 @@ export const PolicyProvider = ({ children }) => {
     } catch (error) {
       console.error('Error during backend payment verification:', error);
       throw error;
+    }
+  };
+
+  // Helper function to get policy data by its Firestore ID or policyNumber
+  const getPolicyById = (id) => {
+    // Check against both Firestore ID and generated policyNumber
+    return policies.find(policy => policy.id === id || policy.policyNumber === id);
+  };
+
+  // CRUD operations for policies directly interacting with Firestore
+  // These functions use the 'db' instance set up in the useEffect
+  const deletePolicy = async (policyFirestoreDocId) => {
+    if (!db) {
+      console.error("Firestore DB not initialized for deletePolicy.");
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'policies', policyFirestoreDocId));
+      console.log("Policy successfully deleted from Firestore!");
+      // onSnapshot listener will automatically update local 'policies' state
+    } catch (error) {
+      console.error("Error deleting policy from Firestore:", error);
+      // Implement a user-facing message instead of alert
+    }
+  };
+
+  const updatePolicyInFirestore = async (policyFirestoreDocId, updatedFields) => {
+    if (!db) {
+      console.error("Firestore DB not initialized for updatePolicyInFirestore.");
+      return;
+    }
+    try {
+      const policyRef = doc(db, 'policies', policyFirestoreDocId);
+      await updateDoc(policyRef, updatedFields);
+      console.log("Policy successfully updated in Firestore!");
+    } catch (error) {
+      console.error("Error updating policy in Firestore:", error);
+      // Implement a user-facing message instead of alert
+    }
+  };
+
+  // CRUD operations for customers directly interacting with Firestore
+  const deleteCustomer = async (customerFirestoreDocId) => {
+    if (!db) {
+      console.error("Firestore DB not initialized for deleteCustomer.");
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'customers', customerFirestoreDocId));
+      console.log("Customer successfully deleted from Firestore!");
+      // onSnapshot listener will automatically update local 'customers' state
+    } catch (error) {
+      console.error("Error deleting customer from Firestore:", error);
+    }
+  };
+
+  const updateCustomerInFirestore = async (customerFirestoreDocId, updatedFields) => {
+    if (!db) {
+      console.error("Firestore DB not initialized for updateCustomerInFirestore.");
+      return;
+    }
+    try {
+      const customerRef = doc(db, 'customers', customerFirestoreDocId);
+      await updateDoc(customerRef, updatedFields);
+      console.log("Customer successfully updated in Firestore!");
+    } catch (error) {
+      console.error("Error updating customer in Firestore:", error);
     }
   };
 
@@ -274,7 +344,7 @@ export const PolicyProvider = ({ children }) => {
 
     const today = new Date();
 
-    const activePolicies = policies.filter(p => p.status === 'Active').length;
+    const activePolicies = policies.filter(p => p.status === 'Active' && p.expiryDate && new Date(p.expiryDate) > today).length;
     const totalRevenue = policies.reduce((sum, policy) => sum + (policy.amount || 0), 0);
 
     const expiringSoon = policies.filter(policy => {
@@ -306,96 +376,23 @@ export const PolicyProvider = ({ children }) => {
     };
   };
 
-  // CRUD operations for policies directly interacting with Firestore
-  const getPolicyById = (id) => {
-    return policies.find(policy => policy.id === id || policy.policyNumber === id);
-  };
-
-  // Firestore Delete Policy
-  const deletePolicy = async (policyFirestoreId) => {
-    if (!db) {
-      console.error("Firestore DB not initialized for deletePolicy.");
-      return;
-    }
-    try {
-      // Check if the policy has a firestorePolicyId (meaning it's in DB)
-      const policyToDelete = policies.find(p => p.firestorePolicyId === policyFirestoreId || p.id === policyFirestoreId);
-      if (policyToDelete && policyToDelete.firestorePolicyId) {
-        await deleteDoc(doc(db, 'policies', policyToDelete.firestorePolicyId));
-        console.log("Policy successfully deleted from Firestore!");
-        // onSnapshot listener will automatically update local state
-      } else {
-        console.warn("Policy not found in Firestore or missing firestorePolicyId, deleting from local state only.");
-        setPolicies(prev => prev.filter(p => p.id !== policyFirestoreId && p.policyNumber !== policyFirestoreId));
-      }
-    } catch (error) {
-      console.error("Error deleting policy from Firestore:", error);
-    }
-  };
-
-  // Firestore Update Policy
-  const updatePolicyInFirestore = async (policyId, updatedFields) => {
-    if (!db) {
-      console.error("Firestore DB not initialized for updatePolicyInFirestore.");
-      return;
-    }
-    try {
-      const policyRef = doc(db, 'policies', policyId);
-      await updateDoc(policyRef, updatedFields);
-      console.log("Policy successfully updated in Firestore!");
-    } catch (error) {
-      console.error("Error updating policy in Firestore:", error);
-    }
-  };
-
-  // Firestore Delete Customer
-  const deleteCustomer = async (customerFirestoreId) => {
-    if (!db) {
-      console.error("Firestore DB not initialized for deleteCustomer.");
-      return;
-    }
-    try {
-      await deleteDoc(doc(db, 'customers', customerFirestoreId));
-      console.log("Customer successfully deleted from Firestore!");
-      // onSnapshot listener will automatically update local state
-    } catch (error) {
-      console.error("Error deleting customer from Firestore:", error);
-    }
-  };
-
-  // Firestore Update Customer
-  const updateCustomerInFirestore = async (customerDocId, updatedFields) => {
-    if (!db) {
-      console.error("Firestore DB not initialized for updateCustomerInFirestore.");
-      return;
-    }
-    try {
-      const customerRef = doc(db, 'customers', customerDocId);
-      await updateDoc(customerRef, updatedFields);
-      console.log("Customer successfully updated in Firestore!");
-    } catch (error) {
-      console.error("Error updating customer in Firestore:", error);
-    }
-  };
-
-
   return (
     <PolicyContext.Provider
       value={{
         policies,
-        customers, // Expose customers array
+        customers,
         currentPolicy,
         selectPolicy,
         updateCustomerDetails,
-        verifyPaymentAndCreatePolicy,
+        verifyPaymentAndCreatePolicy, // This is the function handling backend interaction and Firestore save
         getPolicyById,
-        deletePolicy, // Expose Firestore delete
-        updatePolicyInFirestore, // Expose Firestore update
-        deleteCustomer, // Expose Firestore delete for customers
-        updateCustomerInFirestore, // Expose Firestore update for customers
+        deletePolicy,
+        updatePolicyInFirestore,
+        deleteCustomer,
+        updateCustomerInFirestore,
         getDashboardData,
-        userId,
-        isAuthReady
+        userId, // Expose userId for conditional rendering/features if needed
+        isAuthReady // Expose auth readiness state
       }}
     >
       {children}

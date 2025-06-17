@@ -1,3 +1,5 @@
+// src/pages/Payment.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
@@ -7,52 +9,57 @@ import { CreditCard } from 'lucide-react';
 
 const Payment = () => {
   const navigate = useNavigate();
+  // Destructure the new verifyPaymentAndCreatePolicy function from context
   const { currentPolicy, verifyPaymentAndCreatePolicy } = usePolicy();
   const [isLoading, setIsLoading] = useState(false);
-  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false); // State to track Razorpay script loading
 
+  // The final amount is already in Rupees from the policy context
   const finalAmount = currentPolicy.amount;
 
   useEffect(() => {
+    // Redirect if essential policy or customer data is missing
     if (!currentPolicy.policyType || !currentPolicy.customerName) {
       navigate('/');
       return;
     }
 
-    console.log("Attempting to load Razorpay script...");
+    // Load Razorpay script once on component mount
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
     script.async = true;
     script.onload = () => {
-      setIsScriptLoaded(true);
-      console.log("Razorpay script loaded successfully!");
+      setIsScriptLoaded(true); // Set state to true when script loads
     };
     script.onerror = () => {
-      console.error('Failed to load Razorpay SDK.');
-      alert('Failed to load payment SDK. Please try again.');
-      console.log("Razorpay script failed to load!");
+      console.error('Failed to load Razorpay SDK. Check network or script URL.');
+      // Provide user feedback, but don't use alert() directly in production
+      // For now, we'll keep alert as a direct indicator for debugging.
+      alert('Failed to load payment SDK. Please check your internet connection or try again later.');
     };
     document.body.appendChild(script);
 
+    // Cleanup script on unmount
     return () => {
       const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
       if (existingScript && document.body.contains(existingScript)) {
         document.body.removeChild(existingScript);
       }
     };
-  }, [currentPolicy, navigate]);
+  }, [currentPolicy, navigate]); // Rerun if currentPolicy changes (unlikely for Payment page) or navigate changes
 
   const handleBack = () => {
     navigate('/customer-details');
   };
 
   const handlePayment = async () => {
-    console.log("handlePayment function triggered.");
-    setIsLoading(true);
+    setIsLoading(true); // Start loading
 
+    // Handle zero-amount policies directly (no Razorpay needed)
     if (finalAmount <= 0) {
       try {
-        const zeroAmountPolicy = await verifyPaymentAndCreatePolicy('N/A_PAYMENT_ID', 'N/A_ORDER_ID', 'N/A_SIGNATURE');
+        // Simulate a successful backend verification for 0-amount policy
+        const zeroAmountPolicy = await verifyPaymentAndCreatePolicy('ZERO_PAYMENT_ID', 'ZERO_ORDER_ID', 'ZERO_SIGNATURE');
         navigate('/confirmation', {
           state: {
             policy: zeroAmountPolicy,
@@ -61,16 +68,17 @@ const Payment = () => {
         });
       } catch (error) {
         console.error('Error with zero amount policy creation:', error);
-        alert(`Policy creation failed: ${error.message}`);
+        alert(`Policy creation failed for zero amount: ${error.message}`);
       } finally {
         setIsLoading(false);
       }
       return;
     }
 
-    console.log("isScriptLoaded state:", isScriptLoaded);
+    // Ensure Razorpay script is loaded before proceeding with actual payment
     if (!isScriptLoaded || !window.Razorpay) {
-      alert('Payment SDK not loaded. Please try again in a moment.');
+      console.warn('Razorpay SDK not loaded. Cannot initiate payment.');
+      alert('Payment system is not ready. Please try again in a moment.');
       setIsLoading(false);
       return;
     }
@@ -78,52 +86,55 @@ const Payment = () => {
     try {
       const backendUrl = import.meta.env.VITE_APP_BACKEND_URL;
       if (!backendUrl) {
-        console.error('VITE_APP_BACKEND_URL is not defined!');
+        console.error('VITE_APP_BACKEND_URL environment variable is not defined.');
         alert('Backend URL is not configured. Please contact support.');
         setIsLoading(false);
         return;
       }
 
-      console.log("Attempting to create order with amount:", finalAmount);
+      // Step 1: Create an order on your backend
       const orderResponse = await fetch(`${backendUrl}/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Sending amount in Rupees. Backend will convert to paisa.
         body: JSON.stringify({ amount: finalAmount }),
       });
 
       if (!orderResponse.ok) {
         const errorData = await orderResponse.json();
-        console.error("Error response from create-order:", errorData);
         throw new Error(errorData.message || 'Failed to create order on backend.');
       }
 
       const orderData = await orderResponse.json();
-      // MODIFIED LOG: Stringify for full output
-      console.log("Razorpay Order Data from Backend:", JSON.stringify(orderData, null, 2));
+      console.log("Razorpay Order Data from Backend:", orderData); // For debugging
 
+      // Step 2: Configure Razorpay checkout options
       const options = {
-        key: 'rzp_live_yYGWUPovOauhOx',
-        amount: orderData.amount,
+        key: import.meta.env.VITE_APP_RAZORPAY_KEY_ID || 'rzp_live_yYGWUPovOauhOx', // Use env var or fallback
+        amount: orderData.amount, // Amount from backend (should be in paisa)
         currency: orderData.currency,
         name: 'Kalyan EnterPrises',
         description: 'Policy Purchase',
         order_id: orderData.id,
         prefill: {
           name: currentPolicy.customerName,
-          email: currentPolicy.email || 'customer@example.com',
-          contact: currentPolicy.phoneNumber,
+          email: currentPolicy.email || 'customer@example.com', // Use customer's email or a fallback
+          contact: currentPolicy.phoneNumber || '9999999999', // Use customer's phone number or a fallback
         },
         theme: {
           color: '#528FF0',
         },
+        // Step 3: Handle payment success callback from Razorpay
         handler: async function (response) {
-          setIsLoading(true);
+          setIsLoading(true); // Keep loading true during verification
           try {
+            // Call verifyPaymentAndCreatePolicy from context to send data to your backend
             const savedPolicy = await verifyPaymentAndCreatePolicy(
               response.razorpay_payment_id,
               response.razorpay_order_id,
               response.razorpay_signature
             );
+            // Navigate to confirmation page with the full policy object
             navigate('/confirmation', {
               state: {
                 policy: savedPolicy,
@@ -134,7 +145,7 @@ const Payment = () => {
             console.error('Error during payment verification process:', error);
             navigate('/confirmation', {
               state: {
-                policy: currentPolicy,
+                policy: currentPolicy, // Pass current policy for context on error
                 paymentStatus: 'fail',
                 errorMessage: error.message || 'Payment processing failed after initiation.',
               },
@@ -144,6 +155,7 @@ const Payment = () => {
           }
         },
         modal: {
+          // Handle dismiss (user closes popup) - should be treated as a payment failure
           ondismiss: function () {
             navigate('/confirmation', {
               state: {
@@ -156,18 +168,19 @@ const Payment = () => {
         },
       };
 
-      // MODIFIED LOG: Stringify for full output
-      console.log("Razorpay Options being sent:", JSON.stringify(options, null, 2));
       const paymentObject = new window.Razorpay(options);
-      paymentObject.open();
+      console.log("Razorpay Options being sent:", options); // For debugging
+      paymentObject.open(); // Open the Razorpay payment modal
+
     } catch (error) {
       console.error('Error initiating Razorpay payment:', error);
       alert(`Payment initiation failed: ${error.message || 'Something went wrong.'}`);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Stop loading regardless of success/failure
     }
   };
 
+  // Render nothing if policy type is not yet selected (e.g., direct navigation)
   if (!currentPolicy.policyType) return null;
 
   return (
