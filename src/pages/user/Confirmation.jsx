@@ -1,342 +1,243 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { usePolicy } from '../../context/PolicyContext';
-import Header from '../../components/Header';
-import Stepper from '../../components/Stepper';
-import { Check, Download, Phone, XCircle } from 'lucide-react'; // Added XCircle for failure
-import { format, addYears, addDays } from 'date-fns';
-import emailjs from 'emailjs-com';
+import Header from '../../components/Header'; // Assuming Header exists
+import Stepper from '../../components/Stepper'; // Assuming Stepper exists
+import { CheckCircle, XCircle, Mail, Phone, Home, Car, User } from 'lucide-react'; // Added icons
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable'; // Ensure this is correctly imported and handled
+import 'jspdf-autotable'; // For better table generation in PDF
+import { format } from 'date-fns'; // For date formatting
 
 const Confirmation = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { updateCustomerDetails } = usePolicy(); // Keep this if you need to update customer details outside payment flow
   const [policy, setPolicy] = useState(null);
-  const [paymentStatus, setPaymentStatus] = useState('pending'); // 'success', 'fail', 'pending'
-  const [errorMessage, setErrorMessage] = useState('');
-  const emailSentRef = useRef(false); // To prevent multiple email sends
+  const [paymentStatus, setPaymentStatus] = useState('pending'); // Can be 'success' or 'fail'
+  const [isEmailSent, setIsEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [showEmailStatus, setShowEmailStatus] = useState(false);
+
 
   useEffect(() => {
-    // Get policy and payment status from navigation state
-    const navState = location.state;
-    if (navState?.policy) {
-      setPolicy(navState.policy);
-      setPaymentStatus(navState.paymentStatus || 'pending');
-      setErrorMessage(navState.errorMessage || '');
-      localStorage.setItem('lastConfirmedPolicy', JSON.stringify(navState.policy));
+    if (location.state && location.state.policy) {
+      setPolicy(location.state.policy);
+      setPaymentStatus(location.state.paymentStatus || 'success'); // Default to success if not specified
     } else {
-      // If direct access or refresh, try to load from local storage
-      const storedPolicy = JSON.parse(localStorage.getItem('lastConfirmedPolicy'));
-      if (storedPolicy) {
-        setPolicy(storedPolicy);
-        // If loaded from storage, assume success for display purposes
-        // In a real app, you might re-verify with backend here
-        setPaymentStatus('success');
-      } else {
-        navigate('/'); // Redirect if no policy data is found
-      }
+      // If no policy data, redirect to home or policy selection
+      console.warn("No policy data found in location state. Redirecting to home.");
+      navigate('/');
     }
   }, [location.state, navigate]);
 
-  // Calculate expiry date based on policy duration
-  const getExpiryDate = (policyObj) => {
-    if (!policyObj || !policyObj.duration) return 'N/A';
-    const durationYears = parseInt(policyObj.duration.split(' ')[0]) || 1;
-    const startDate = policyObj.startDate ? new Date(policyObj.startDate) : new Date();
-    const calculatedExpiryDate = addYears(startDate, durationYears);
-    return format(calculatedExpiryDate, 'dd/MM/yyyy');
-  };
-
-  // --- START: Email Sending Logic ---
+  // Effect to send email after policy is set and payment is successful
   useEffect(() => {
-    if (!policy || emailSentRef.current || paymentStatus !== 'success') {
-      return; // Only send email if policy exists, not already sent, and payment was successful
+    if (policy && paymentStatus === 'success' && !isEmailSent) {
+      sendConfirmationEmail(policy);
+    }
+  }, [policy, paymentStatus, isEmailSent]);
+
+
+  const sendConfirmationEmail = async (policyDetails) => {
+    // Check if customer email exists
+    if (!policyDetails.email) {
+      console.warn("Cannot send email: Customer email is missing.");
+      setEmailError("Customer email address is missing.");
+      setShowEmailStatus(true);
+      return;
+    }
+    
+    const backendUrl = import.meta.env.VITE_APP_BACKEND_URL;
+    if (!backendUrl) {
+      console.error('VITE_APP_BACKEND_URL is not defined for email sending!');
+      setEmailError('Backend URL is not configured for email service.');
+      setShowEmailStatus(true);
+      return;
     }
 
-    // Initialize EmailJS (ensure your .env variables or direct credentials are set correctly)
-    // emailjs.init('YOUR_PUBLIC_KEY'); // You might need to initialize it globally or here if not done already
+    try {
+      console.log('Attempting to send confirmation email...');
+      const response = await fetch(`${backendUrl}/api/confirmations/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ policy: policyDetails }),
+      });
 
-    const sendEmails = async () => {
-      // Note: Policy.amount should already be the final amount. Remove local GST calc.
-      const totalAmount = policy.amount; // Use policy.amount directly
+      const data = await response.json();
 
-      const currentExpiryDate = getExpiryDate(policy);
-
-      // Email to Customer
-      const customerParams = {
-        customerName: policy.customerName,
-        policyType: policy.policyType,
-        policyId: policy.policyNumber, // Use the unique policyNumber
-        expiryDate: currentExpiryDate,
-        amount: totalAmount,
-        email: policy.email,
-      };
-
-      try {
-        await emailjs.send('service_jxfnu9e', 'template_6nqqa86', customerParams, 'KjdPUWClLtvszArtz');
-        console.log('✅ Customer Email sent!');
-        // Consider showing a subtle "Email sent!" message to the user on the page
-      } catch (err) {
-        console.error('❌ Failed to send customer email:', err);
+      if (response.ok && data.success) {
+        console.log('✅ Customer Email sent successfully!');
+        setIsEmailSent(true);
+        setEmailError('');
+      } else {
+        console.error('❌ Failed to send customer email:', data.message);
+        setEmailError(data.message || 'Failed to send confirmation email.');
       }
-
-      // Email to Admin
-      const adminParams = {
-        customerName: policy.customerName,
-        policyType: policy.policyType,
-        policyId: policy.policyNumber, // Use the unique policyNumber
-        expiryDate: currentExpiryDate,
-        amount: totalAmount,
-      };
-
-      try {
-        await emailjs.send('service_jxfnu9e', 'template_ke8iorl', adminParams, 'KjdPUWClLtvszArtz');
-        console.log('✅ Admin Email sent!');
-      } catch (err) {
-        console.error('❌ Failed to send admin email:', err);
-      }
-
-      emailSentRef.current = true; // Mark email as sent
-    };
-
-    sendEmails();
-  }, [policy, paymentStatus]);
-  // --- END: Email Sending Logic ---
-
-  // Function to convert number to words for PDF
-  const convertToWords = (amount) => {
-    const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six',
-      'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve',
-      'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen',
-      'Eighteen', 'Nineteen'];
-    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty',
-      'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-
-    const inWords = (num) => {
-      if ((num = num.toString()).length > 9) return 'Overflow';
-      let n = ('000000000' + num).substr(-9).match(/.{1,2}/g);
-      if (!n) return '';
-      let str = '';
-      str += n[0] != 0 ? (a[Number(n[0])] || b[n[0][0]] + ' ' + a[n[0][1]]) + ' Crore ' : '';
-      str += n[1] != 0 ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + ' Lakh ' : '';
-      str += n[2] != 0 ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + ' Thousand ' : '';
-      str += n[3] != 0 ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + ' Hundred ' : '';
-      str += n[4] != 0 ? ((str != '') ? 'and ' : '') + (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + ' ' : '';
-      return str.trim() + ' Only'; // Trim and add " Only"
-    };
-
-    return inWords(amount);
+    } catch (error) {
+      console.error('Error sending confirmation email:', error);
+      setEmailError(`Network error or backend issue: ${error.message}`);
+    } finally {
+      setShowEmailStatus(true); // Always show status after attempt
+    }
   };
 
-  // --- START: PDF Generation Logic ---
-  const generatePDF = () => {
+
+  const handleDownloadPolicy = async () => {
     if (!policy) {
-      alert('Policy data not available to generate PDF.');
+      console.error("No policy data available for PDF download.");
       return;
     }
 
     const doc = new jsPDF();
-    // These amounts should come directly from policy.amount as it's inclusive
-    const totalAmount = policy.amount;
-    // If you *must* show a breakdown, calculate tax based on price excluding tax
-    // For now, assuming policy.amount IS the total including tax.
-    const taxAmount = 0; // Assuming 0 as price is inclusive. Adjust if breakdown is needed.
+    doc.setFontSize(22);
+    doc.text("RSA Policy Confirmation", 105, 20, { align: 'center' });
 
-    // Dates from the policy object
-    const startDatePdf = policy.startDate ? format(new Date(policy.startDate), 'dd/MM/yyyy') : 'N/A';
-    const expiryDatePdf = policy.expiryDate ? format(new Date(policy.expiryDate), 'dd/MM/yyyy') : getExpiryDate(policy);
+    doc.setFontSize(12);
+    doc.setTextColor(100);
 
-
-    const amountInWords = convertToWords(Math.round(totalAmount));
-
-    const invoiceTitle = policy.policyType || 'RSA Policy Invoice'; // More specific title
-    const companyName = 'Kalyan Enterprises'; // Hardcode if consistent
-    const supportNumber = '+91 8398912131'; // Hardcode if consistent
-
-    // Header
-    doc.setFillColor(0, 51, 153); // Dark blue
-    doc.setTextColor(255); // White text
-    doc.setFontSize(16);
-    doc.setFont(undefined, 'bold');
-    doc.rect(10, 10, 190, 10, 'F');
-    doc.text(companyName, doc.internal.pageSize.getWidth() / 2, 17, { align: 'center' }); // Center company name
-
-    doc.setFontSize(13);
-    doc.rect(10, 22, 190, 10, 'F');
-    doc.text(invoiceTitle, doc.internal.pageSize.getWidth() / 2, 29, { align: 'center' }); // Center invoice title
-
-    doc.setFontSize(11);
-    doc.setTextColor(0); // Black text for content
-
-    // Certificate Dates and Vehicle No
-    autoTable(doc, {
-      startY: 35,
-      theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 3 },
-      head: [['Certificate Start Date', 'Certificate End Date', 'Vehicle Registration Number']],
-      body: [[startDatePdf, expiryDatePdf, policy.vehicleNumber]],
-    });
-
-    // Personal Details Header
-    autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 5,
-      head: [['PERSONAL DETAILS']],
-      theme: 'grid',
-      styles: { fillColor: [0, 51, 153], textColor: 255, halign: 'left', fontStyle: 'bold' },
-      headStyles: { fontSize: 12 }
-    });
-
-    // Personal Details Body
-    autoTable(doc, {
-      startY: doc.lastAutoTable.finalY,
-      theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 3 },
+    // Policy Details Table
+    doc.text("Policy Details:", 10, 40);
+    doc.autoTable({
+      startY: 45,
+      head: [['Field', 'Detail']],
       body: [
-        ['Customer Name', policy.customerName], // Changed from First Name
-        ['Mobile No', policy.phoneNumber && policy.phoneNumber.trim() !== '' ? policy.phoneNumber : 'Not Available'],
-        ['Email', policy.email || 'NA'],
-        ['Address', `${policy.address}, ${policy.city}` || 'NA'] // Combine address and city
-      ]
-    });
-
-    // Payment Details Header
-    autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 5,
-      head: [['PAYMENT DETAILS']],
-      theme: 'grid',
-      styles: { fillColor: [0, 51, 153], textColor: 255, halign: 'left', fontStyle: 'bold' },
-      headStyles: { fontSize: 12 }
-    });
-
-    // Payment Details Body
-    autoTable(doc, {
-      startY: doc.lastAutoTable.finalY,
-      theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 3 },
-      body: [
-        ['Plan Amount', `₹${totalAmount.toFixed(2)}`], // Use totalAmount directly
-        // If you need a tax breakdown:
-        // ['Amount Of Tax IGST (18%)', `₹${taxAmount.toFixed(2)}`],
-        ['Total Amount Paid', `₹${totalAmount.toFixed(2)}`], // Clarify it's total paid
-        ['Amount In Words', amountInWords]
-      ]
-    });
-
-    // Plan Features (consider making this dynamic based on policy.features if possible)
-    // For now, using a placeholder if policy.features is not formatted for autoTable body directly
-    const policyFeaturesForPdf = policy.features ? policy.features.map((f, idx) => [idx + 1, f.name, f.included ? 'Yes' : 'No']) : [
-      ['1', '24/7 Roadside Assistance', 'Yes'],
-      ['2', 'Nation Wide Towing', 'Yes'],
-      ['3', 'Flat Tire Assistance', 'Yes'],
-      ['4', 'Fuel Delivery', 'Yes'],
-      ['5', 'Battery Jump Start', 'Yes'],
-    ];
-
-    autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 5,
-      head: [['S.No', 'Service Features', 'Included']], // Renamed PPEY to Included for clarity
-      body: policyFeaturesForPdf,
+        ['Policy Number', policy.policyNumber || 'N/A'],
+        ['Policy Type', policy.policyType || 'N/A'],
+        ['Duration', policy.duration || 'N/A'],
+        ['Amount Paid', `₹${policy.amount ? policy.amount.toLocaleString() : '0'}`],
+        // Ensure these dates are formatted. The 'policy' object should have Date objects from PolicyContext.
+        ['Start Date', policy.startDate ? format(new Date(policy.startDate), 'dd MMMM yyyy') : 'N/A'],
+        ['Expiry Date', policy.expiryDate ? format(new Date(policy.expiryDate), 'dd MMMM yyyy') : 'N/A'],
+        ['Status', policy.status || 'N/A']
+      ],
       theme: 'striped',
-      styles: { fontSize: 10, cellPadding: 3 },
-      headStyles: { fillColor: [0, 51, 153], textColor: 255 },
+      headStyles: { fillColor: '#1e40af' },
+      styles: { cellPadding: 3, fontSize: 10, valign: 'middle' },
+      columnStyles: { 0: { fontStyle: 'bold' } }
     });
 
-    doc.setFont(undefined, 'italic');
-    doc.setFontSize(10);
-    doc.text(
-      'Note: This is a computer-generated policy document and does not require a signature.', // More accurate note
-      20,
-      doc.lastAutoTable.finalY + 15
-    );
+    // Customer Details Table
+    doc.text("Customer Details:", 10, doc.autoTable.previous.finalY + 10);
+    doc.autoTable({
+      startY: doc.autoTable.previous.finalY + 15,
+      head: [['Field', 'Detail']],
+      body: [
+        ['Name', policy.customerName || 'N/A'],
+        ['Email', policy.email || 'N/A'],
+        ['Phone Number', policy.phoneNumber || 'N/A'],
+        ['Address', `${policy.address || 'N/A'}, ${policy.city || 'N/A'}`],
+        ['Vehicle Number', policy.vehicleNumber || 'N/A'],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: '#10B981' },
+      styles: { cellPadding: 3, fontSize: 10, valign: 'middle' },
+      columnStyles: { 0: { fontStyle: 'bold' } }
+    });
 
-    doc.save(`Policy_${policy.policyNumber || policy.id}.pdf`); // Use unique policyNumber for filename
+    // How to use service (static content)
+    doc.text("How to use your RSA service:", 10, doc.autoTable.previous.finalY + 10);
+    doc.text("In case of emergency, call our 24/7 helpline: +91 8398912131", 10, doc.autoTable.previous.finalY + 20);
+
+    doc.save(`RSA_Policy_${policy.policyNumber || 'Confirmation'}.pdf`);
   };
-  // --- END: PDF Generation Logic ---
 
 
-  if (!policy) return null;
-
-  const isSuccess = paymentStatus === 'success';
+  if (!policy) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <p className="text-gray-700 text-lg">Loading policy details or redirecting...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
       <Stepper />
-
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-3xl">
+      <main className="flex-1 container mx-auto px-4 py-8 max-w-4xl">
         <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <div className="flex justify-center mb-4">
-            {isSuccess ? (
-              <div className="rounded-full bg-green-100 p-3">
-                <Check className="h-10 w-10 text-green-600" />
-              </div>
-            ) : (
-              <div className="rounded-full bg-red-100 p-3">
-                <XCircle className="h-10 w-10 text-red-600" />
-              </div>
-            )}
-          </div>
+          {paymentStatus === 'success' ? (
+            <>
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">Payment Successful!</h1>
+              <p className="text-green-600 mb-6">Your RSA policy has been activated</p>
+            </>
+          ) : (
+            <>
+              <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">Payment Failed!</h1>
+              <p className="text-red-600 mb-6">There was an issue processing your payment. Please try again.</p>
+            </>
+          )}
 
-          <h1 className={`text-2xl font-bold mb-2 ${isSuccess ? 'text-gray-800' : 'text-red-800'}`}>
-            {isSuccess ? 'Payment Successful!' : 'Payment Failed / Cancelled'}
-          </h1>
-          <p className={`${isSuccess ? 'text-green-600' : 'text-red-600'} font-semibold mb-6`}>
-            {isSuccess ? 'Your RSA policy has been activated' : errorMessage || 'Please try again or contact support.'}
-          </p>
-
-          {isSuccess && (
-            <div className="bg-blue-50 p-4 rounded-md mb-8">
-              <h2 className="text-lg font-semibold mb-2">Email Sent Successfully!</h2>
-              <p className="text-gray-700">
-                A confirmation email with your policy details has been sent to{' '}
-                <span className="font-semibold">{policy.email}</span>
-              </p>
+          {/* Email Sending Status */}
+          {showEmailStatus && (
+            <div className={`mt-4 p-3 rounded-md mx-auto max-w-sm ${isEmailSent ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              {isEmailSent ? (
+                <p className="flex items-center justify-center">
+                  <Mail className="w-5 h-5 mr-2" /> Email Sent Successfully!
+                </p>
+              ) : (
+                <p className="flex items-center justify-center">
+                  <XCircle className="w-5 h-5 mr-2" /> Failed to send email: {emailError}
+                </p>
+              )}
             </div>
           )}
 
-          <div className="bg-gray-50 p-6 rounded-md mb-8 text-left">
-            <h2 className="text-xl font-semibold mb-4">Policy Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Fix 2: Display policy.policyNumber instead of policy.id */}
-              <div><p className="text-gray-600 text-sm">Policy Number:</p><p className="font-semibold">{policy.policyNumber || policy.id}</p></div>
-              <div><p className="text-gray-600 text-sm">Policy Type:</p><p className="font-semibold">{policy.policyType}</p></div>
-              <div><p className="text-gray-600 text-sm">Customer Name:</p><p className="font-semibold">{policy.customerName}</p></div>
-              <div><p className="text-gray-600 text-sm">Vehicle Number:</p><p className="font-semibold">{policy.vehicleNumber}</p></div>
-              <div><p className="text-gray-600 text-sm">Valid Until:</p><p className="font-semibold">{getExpiryDate(policy)}</p></div>
-              {/* Fix 3: Display policy.amount directly, remove local GST calc */}
-              <div><p className="text-gray-600 text-sm">Amount Paid:</p><p className="font-semibold">₹{policy.amount}</p></div>
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+            {/* Policy Details */}
+            <div className="bg-gray-50 p-4 rounded-md shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-700 mb-3">Policy Details</h2>
+              <div className="space-y-2">
+                <p><strong className="text-gray-600">Policy Number:</strong> {policy.policyNumber || 'N/A'}</p>
+                <p><strong className="text-gray-600">Policy Type:</strong> {policy.policyType || 'N/A'}</p>
+                <p><strong className="text-gray-600">Duration:</strong> {policy.duration || 'N/A'}</p>
+                <p><strong className="text-gray-600">Amount Paid:</strong> ₹{policy.amount ? policy.amount.toLocaleString() : '0'}</p>
+                <p><strong className="text-gray-600">Valid From:</strong> {policy.startDate ? format(new Date(policy.startDate), 'dd/MM/yyyy') : 'N/A'}</p>
+                <p><strong className="text-gray-600">Valid Until:</strong> {policy.expiryDate ? format(new Date(policy.expiryDate), 'dd/MM/yyyy') : 'N/A'}</p>
+                <p><strong className="text-gray-600">Status:</strong> {policy.status || 'N/A'}</p>
+              </div>
+            </div>
+
+            {/* Customer Details */}
+            <div className="bg-gray-50 p-4 rounded-md shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-700 mb-3">Customer Details</h2>
+              <div className="space-y-2">
+                <p className="flex items-center"><User className="w-5 h-5 mr-2 text-gray-500" /><strong className="text-gray-600">Name:</strong> {policy.customerName || 'N/A'}</p>
+                <p className="flex items-center"><Mail className="w-5 h-5 mr-2 text-gray-500" /><strong className="text-gray-600">Email:</strong> {policy.email || 'N/A'}</p>
+                <p className="flex items-center"><Phone className="w-5 h-5 mr-2 text-gray-500" /><strong className="text-gray-600">Phone:</strong> {policy.phoneNumber || 'N/A'}</p>
+                <p className="flex items-center"><Home className="w-5 h-5 mr-2 text-gray-500" /><strong className="text-gray-600">Address:</strong> {policy.address || 'N/A'}, {policy.city || 'N/A'}</p>
+                <p className="flex items-center"><Car className="w-5 h-5 mr-2 text-gray-500" /><strong className="text-gray-600">Vehicle Number:</strong> {policy.vehicleNumber || 'N/A'}</p>
+              </div>
             </div>
           </div>
 
-          <div className="bg-gray-50 p-6 rounded-md mb-8 text-left">
-            <h2 className="text-xl font-semibold mb-4">How to use your RSA service</h2>
-            <p className="mb-2">In case of emergency, call our 24/7 helpline:</p>
-            <div className="bg-blue-600 text-white p-4 rounded-md flex items-center justify-center space-x-2">
-              <Phone className="h-5 w-5" />
-              <span className="text-xl font-bold">+91 8398912131</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4">
-            {isSuccess && ( // Only show download button on success
-              <button
-                onClick={generatePDF}
-                className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                <Download className="mr-2 h-5 w-5" />
-                Download Policy
-              </button>
-            )}
-            <button
-              onClick={() => navigate('/')}
-              className="px-6 py-3 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+          <div className="mt-8 bg-gray-50 p-4 rounded-md shadow-sm text-left">
+            <h2 className="text-lg font-semibold text-gray-700 mb-3">How to use your RSA service</h2>
+            <p className="text-gray-700 mb-4">
+              In case of emergency, call our 24/7 helpline:
+            </p>
+            <a
+              href="tel:+918398912131"
+              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              Back to Home
+              <Phone className="h-5 w-5 mr-2" /> +91 8398912131
+            </a>
+          </div>
+
+          <div className="mt-8 flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <button
+              onClick={handleDownloadPolicy}
+              className="w-full sm:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              Download Policy
+            </button>
+            <button
+              onClick={() => navigate('/admin/dashboard')}
+              className="w-full sm:w-auto px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Go to Admin Dashboard
             </button>
           </div>
-        </div>
       </main>
     </div>
   );
