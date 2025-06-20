@@ -187,12 +187,9 @@ export const PolicyProvider = ({ children }) => {
 
   // Verify payment with backend and save policy/customer to Firestore
   const verifyPaymentAndCreatePolicy = async (paymentId, orderId, signature) => {
-    const backendUrl = import.meta.env.VITE_APP_BACKEND_URL;
-    if (!backendUrl) {
-      console.error('VITE_APP_BACKEND_URL is not defined!');
-      throw new Error('Backend URL is not configured.');
-    }
-
+    // Use relative path for Vercel deployment
+    const apiUrl = '/api/payments/verify-and-save';
+     
     const today = new Date();
     const durationInYears = parseInt(currentPolicy.duration.split(' ')[0]) || 1;
     const expiryDate = addYears(today, durationInYears);
@@ -218,7 +215,7 @@ export const PolicyProvider = ({ children }) => {
     };
 
     try {
-      const response = await fetch(`${backendUrl}/api/payments/verify-and-save`, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

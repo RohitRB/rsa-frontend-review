@@ -74,34 +74,31 @@ const Payment = () => {
     }
 
     try {
-      const backendUrl = import.meta.env.VITE_APP_BACKEND_URL;
-      if (!backendUrl) {
-        console.error('VITE_APP_BACKEND_URL environment variable is not defined.');
-        alert('Backend URL is not configured. Please contact support.');
-        setIsLoading(false);
-        return;
-      }
-
-      const orderResponse = await fetch(`${backendUrl}/create-order`, {
+      // Use relative path for Vercel deployment
+      const orderResponse = await fetch('/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: finalAmount }),
+        body: JSON.stringify({ 
+          amount: finalAmount,
+          currency: 'INR',
+          receipt: `receipt_${Date.now()}`
+        }),
       });
 
       if (!orderResponse.ok) {
         const errorData = await orderResponse.json();
-        throw new Error(errorData.message || 'Failed to create order on backend.');
+        throw new Error(errorData.message || 'Failed to create order.');
       }
 
       const orderData = await orderResponse.json();
 
       const options = {
         key: import.meta.env.VITE_APP_RAZORPAY_KEY_ID || 'rzp_live_yYGWUPovOauhOx',
-        amount: orderData.amount,
-        currency: orderData.currency,
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
         name: 'Kalyan EnterPrises',
         description: 'Policy Purchase',
-        order_id: orderData.id,
+        order_id: orderData.order.id,
         handler: async function (response) {
           setIsLoading(true);
           try {
