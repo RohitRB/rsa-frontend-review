@@ -20,7 +20,8 @@ const Policies = () => {
     console.log()
     try {
       setLoading(true);
-      const response = await axios.get('/api/policies');
+      const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';
+      const response = await axios.get(`${backendUrl}/api/policies`);
       setPolicies(response.data);
     } catch (error) {
       console.error('Error fetching policies:', error);

@@ -187,8 +187,9 @@ export const PolicyProvider = ({ children }) => {
 
   // Verify payment with backend and save policy/customer to Firestore
   const verifyPaymentAndCreatePolicy = async (paymentId, orderId, signature) => {
-    // Use relative path for Vercel deployment
-    const apiUrl = '/api/payments/verify-and-save';
+    // Use backend URL for local development, fallback to Vercel API for production
+    const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';
+    const apiUrl = `${backendUrl}/api/payments/verify-and-save`;
      
     const today = new Date();
     const durationInYears = parseInt(currentPolicy.duration.split(' ')[0]) || 1;

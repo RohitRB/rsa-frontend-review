@@ -18,7 +18,8 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const response = await axios.get('/api/dashboard');
+        const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';
+        const response = await axios.get(`${backendUrl}/api/dashboard`);
         setStats(response.data);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);

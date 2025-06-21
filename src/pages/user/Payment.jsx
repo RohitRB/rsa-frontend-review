@@ -74,8 +74,9 @@ const Payment = () => {
     }
 
     try {
-      // Use relative path for Vercel deployment
-      const orderResponse = await fetch('/api/create-order', {
+      // Use backend URL for local development, fallback to Vercel API for production
+      const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';
+      const orderResponse = await fetch(`${backendUrl}/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -94,11 +95,11 @@ const Payment = () => {
 
       const options = {
         key: import.meta.env.VITE_APP_RAZORPAY_KEY_ID || 'rzp_live_yYGWUPovOauhOx',
-        amount: orderData.order.amount,
-        currency: orderData.order.currency,
+        amount: orderData.amount,
+        currency: orderData.currency,
         name: 'Kalyan EnterPrises',
         description: 'Policy Purchase',
-        order_id: orderData.order.id,
+        order_id: orderData.id,
         handler: async function (response) {
           setIsLoading(true);
           try {

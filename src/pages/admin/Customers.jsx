@@ -1,12 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, Edit, Trash2, Search, Filter, Plus } from 'lucide-react';
+import axios from 'axios';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 
 const Customers = () => {
-  
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+      const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';
+      const response = await axios.get(`${backendUrl}/api/customers`);
+      setCustomers(response.data);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
 
   const handleViewCustomer = (customer) => {
     setSelectedCustomer(customer);
@@ -56,32 +75,48 @@ const Customers = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {customers.map((customer) => (
-                <tr key={customer.id}>
-                  <td className="px-6 py-4">{customer.id}</td>
-                  <td className="px-6 py-4">{customer.name}</td>
-                  <td className="px-6 py-4">{customer.email}</td>
-                  <td className="px-6 py-4">{customer.phone}</td>
-                  <td className="px-6 py-4">{customer.vehicleNumber}</td>
-                  <td className="px-6 py-4">{customer.policies}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-3">
-                      <button 
-                        onClick={() => handleViewCustomer(customer)}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        <Eye size={18} />
-                      </button>
-                      <button className="text-gray-600 hover:text-gray-800">
-                        <Edit size={18} />
-                      </button>
-                      <button className="text-red-600 hover:text-red-800">
-                        <Trash2 size={18} />
-                      </button>
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="px-6 py-4 text-center">
+                    <div className="flex justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary"></div>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : customers.length > 0 ? (
+                customers.map((customer) => (
+                  <tr key={customer.id}>
+                    <td className="px-6 py-4">{customer.id}</td>
+                    <td className="px-6 py-4">{customer.customerName}</td>
+                    <td className="px-6 py-4">{customer.email}</td>
+                    <td className="px-6 py-4">{customer.phoneNumber}</td>
+                    <td className="px-6 py-4">{customer.vehicleNumber}</td>
+                    <td className="px-6 py-4">-</td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={() => handleViewCustomer(customer)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <Eye size={18} />
+                        </button>
+                        <button className="text-gray-600 hover:text-gray-800">
+                          <Edit size={18} />
+                        </button>
+                        <button className="text-red-600 hover:text-red-800">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                    No customers found
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -110,7 +145,7 @@ const Customers = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Name</p>
-                <p className="font-medium">{selectedCustomer.name}</p>
+                <p className="font-medium">{selectedCustomer.customerName}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Email</p>
@@ -118,7 +153,7 @@ const Customers = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Phone</p>
-                <p className="font-medium">{selectedCustomer.phone}</p>
+                <p className="font-medium">{selectedCustomer.phoneNumber}</p>
               </div>
             </div>
 
