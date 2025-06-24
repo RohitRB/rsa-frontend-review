@@ -8,7 +8,7 @@ import { CheckCircle, XCircle, Mail, Phone, Home, Car, User, Download } from 'lu
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format, addYears } from 'date-fns';
-import emailjs from 'emailjs-com';
+import emailjs from '@emailjs/browser';
 
 const Confirmation = () => {
   const location = useLocation();
@@ -62,16 +62,6 @@ const Confirmation = () => {
     return format(date, 'dd/MM/yyyy');
   };
 
-  // EmailJS Initialization and Sending Logic
-  useEffect(() => {
-    if (import.meta.env.VITE_APP_EMAILJS_USER_ID) {
-      emailjs.init(import.meta.env.VITE_APP_EMAILJS_USER_ID);
-      console.log("EmailJS initialized.");
-    } else {
-      console.warn("EmailJS User ID is not set (VITE_APP_EMAILJS_USER_ID). Email sending will not work.");
-    }
-  }, []);
-
   useEffect(() => {
     if (!policy || emailSendAttemptedRef.current || paymentStatus !== 'success') {
       return;
@@ -79,6 +69,18 @@ const Confirmation = () => {
 
     const sendConfirmationEmails = async () => {
       emailSendAttemptedRef.current = true;
+
+      const serviceId = import.meta.env.VITE_APP_EMAILJS_SERVICE_ID;
+      const customerTemplateId = import.meta.env.VITE_APP_EMAILJS_CUSTOMER_TEMPLATE_ID;
+      const adminTemplateId = import.meta.env.VITE_APP_EMAILJS_ADMIN_TEMPLATE_ID;
+      const publicKey = import.meta.env.VITE_APP_EMAILJS_USER_ID;
+
+      if (!serviceId || !customerTemplateId || !adminTemplateId || !publicKey || publicKey === 'your_emailjs_user_id') {
+        console.warn("EmailJS environment variables are not fully configured. Email sending will not work.");
+        setEmailSendingError("Email service is not configured correctly. Please contact support.");
+        setShowEmailStatus(true);
+        return;
+      }
 
       const totalAmount = parseFloat(policy.amount);
       const formattedExpiryDate = getFormattedExpiryDate(policy);
@@ -101,7 +103,7 @@ const Confirmation = () => {
       };
 
       try {
-        await emailjs.send('service_jxfnu9e', 'template_6nqqa86', customerParams);
+        await emailjs.send(serviceId, customerTemplateId, customerParams, publicKey);
         console.log('✅ Customer Email sent successfully!');
         setIsEmailSent(true);
         setEmailSendingError('');
@@ -120,7 +122,7 @@ const Confirmation = () => {
       };
 
       try {
-        await emailjs.send('service_jxfnu9e', 'template_ke8iorl', adminParams);
+        await emailjs.send(serviceId, adminTemplateId, adminParams, publicKey);
         console.log('✅ Admin Email sent successfully!');
       } catch (err) {
         console.error('❌ Failed to send admin email:', err);
