@@ -167,20 +167,10 @@ const Confirmation = () => {
     return inWords(amount);
   };
 
-  const generatePDF = async () => {
+  const generatePDF = () => {
     if (!policy) {
       alert('Policy data not available to generate PDF.');
       return;
-    }
-
-    // Dynamically import jsPDF and the plugin
-    const jsPDFModule = await import('jspdf');
-    const jsPDF = jsPDFModule.default;
-    const autoTable = (await import('jspdf-autotable')).default;
-
-    // Explicitly register the plugin if needed
-    if (typeof autoTable === 'function') {
-      autoTable(jsPDF);
     }
 
     const doc = new jsPDF();
