@@ -174,8 +174,14 @@ const Confirmation = () => {
     }
 
     // Dynamically import jsPDF and the plugin
-    const jsPDF = (await import('jspdf')).default;
-    await import('jspdf-autotable');
+    const jsPDFModule = await import('jspdf');
+    const jsPDF = jsPDFModule.default;
+    const autoTable = (await import('jspdf-autotable')).default;
+
+    // Explicitly register the plugin if needed
+    if (typeof autoTable === 'function') {
+      autoTable(jsPDF);
+    }
 
     const doc = new jsPDF();
     const totalAmount = parseFloat(policy.amount); 
