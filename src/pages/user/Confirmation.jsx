@@ -167,11 +167,15 @@ const Confirmation = () => {
     return inWords(amount);
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     if (!policy) {
       alert('Policy data not available to generate PDF.');
       return;
     }
+
+    // Dynamically import jsPDF and the plugin
+    const jsPDF = (await import('jspdf')).default;
+    await import('jspdf-autotable');
 
     const doc = new jsPDF();
     const totalAmount = parseFloat(policy.amount); 
