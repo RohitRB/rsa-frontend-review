@@ -30,11 +30,17 @@ const AdminPolicies = () => {
         const response = await axios.get(`${backendUrl}/api/policies`);
         
         // Ensure date fields are Date objects
+        const toDate = (val) => {
+          if (!val) return new Date();
+          if (typeof val === 'string') return parseISO(val);
+          if (typeof val === 'object' && val._seconds) return new Date(val._seconds * 1000);
+          return new Date(val);
+        };
         const formattedPolicies = response.data.map(p => ({
           ...p,
-          createdAt: p.createdAt ? parseISO(p.createdAt) : new Date(),
-          startDate: p.startDate ? parseISO(p.startDate) : new Date(),
-          expiryDate: p.expiryDate ? parseISO(p.expiryDate) : new Date(),
+          createdAt: toDate(p.createdAt),
+          startDate: toDate(p.startDate),
+          expiryDate: toDate(p.expiryDate),
         }));
         console.log('Policies:', formattedPolicies); // DEBUG LOG
         setPolicies(formattedPolicies);
