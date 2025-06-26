@@ -36,7 +36,7 @@ const AdminPolicies = () => {
           startDate: p.startDate ? parseISO(p.startDate) : new Date(),
           expiryDate: p.expiryDate ? parseISO(p.expiryDate) : new Date(),
         }));
-        
+        console.log('Policies:', formattedPolicies); // DEBUG LOG
         setPolicies(formattedPolicies);
       } catch (error) {
         console.error("Error fetching policies:", error);
@@ -48,48 +48,7 @@ const AdminPolicies = () => {
   }, []);
 
   // Filter and search policies
-  const filteredPolicies = policies.filter(policy => {
-    // Ensure policy.customerName, policy.vehicleNumber, policy.policyNumber are strings
-    const customerName = policy.customerName?.toLowerCase() || '';
-    const vehicleNumber = policy.vehicleNumber?.toLowerCase() || '';
-    const policyNumber = policy.policyNumber?.toLowerCase() || '';
-    const id = policy.id?.toLowerCase() || '';
-
-    const matchesSearch =
-      customerName.includes(searchTerm.toLowerCase()) ||
-      vehicleNumber.includes(searchTerm.toLowerCase()) ||
-      policyNumber.includes(searchTerm.toLowerCase()) ||
-      id.includes(searchTerm.toLowerCase());
-
-    // Filter by viewMode (active, expired, etc.)
-    let matchesFilter = true; // Default to true for 'all'
-
-    if (policy.expiryDate) {
-      const policyExpiryDate = policy.expiryDate;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Normalize today's date
-
-      if (viewMode === 'active') {
-        matchesFilter = isAfter(policyExpiryDate, today);
-      } else if (viewMode === 'expiring soon') {
-        const thirtyDaysFromNow = addDays(today, 30); // CORRECTED: was subDays
-        matchesFilter = isAfter(policyExpiryDate, today) && isBefore(policyExpiryDate, thirtyDaysFromNow);
-      } else if (viewMode === 'expired') {
-        matchesFilter = isBefore(policyExpiryDate, today);
-      }
-    }
-
-    // Apply numerical expiry filter if set
-    if (expiryFilterDays) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const filterDate = addDays(today, parseInt(expiryFilterDays)); // CORRECTED: was subDays
-      const policyExpiryDate = policy.expiryDate;
-      matchesFilter = matchesFilter && isAfter(policyExpiryDate, today) && isBefore(policyExpiryDate, filterDate);
-    }
-
-    return matchesSearch && matchesFilter;
-  });
+  const filteredPolicies = policies; // TEMP: bypass all filtering for debugging
 
   // Pagination
   const totalPages = Math.ceil(filteredPolicies.length / itemsPerPage);
