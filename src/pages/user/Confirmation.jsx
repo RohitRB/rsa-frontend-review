@@ -6,12 +6,9 @@ import Header from '../../components/Header';
 import Stepper from '../../components/Stepper';
 import { CheckCircle, XCircle, Mail, Phone, Home, Car, User, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 import { format, addYears } from 'date-fns';
 import emailjs from '@emailjs/browser';
-
-// Register the autoTable plugin
-jsPDF.API.autoTable = autoTable;
 
 // Runtime check to ensure autoTable is loaded
 if (!jsPDF.API.autoTable) {
