@@ -54,7 +54,35 @@ const AdminPolicies = () => {
   }, []);
 
   // Filter and search policies
-  const filteredPolicies = policies; // TEMP: bypass all filtering for debugging
+  const filteredPolicies = policies.filter(policy => {
+    // Search filter
+    const searchMatch = !searchTerm || 
+      policy.policyNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      policy.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      policy.vehicleNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // View mode filter
+    let viewMatch = true;
+    if (viewMode === 'active') {
+      viewMatch = policy.status === 'Active';
+    } else if (viewMode === 'expired') {
+      viewMatch = policy.status === 'Expired';
+    } else if (viewMode === 'expiring soon') {
+      viewMatch = policy.status === 'Expiring Soon';
+    }
+
+    // Expiry filter
+    let expiryMatch = true;
+    if (expiryFilterDays) {
+      const days = parseInt(expiryFilterDays);
+      const today = new Date();
+      const expiryDate = policy.expiryDate instanceof Date ? policy.expiryDate : new Date(policy.expiryDate);
+      const diffInDays = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      expiryMatch = diffInDays <= days && diffInDays >= 0;
+    }
+
+    return searchMatch && viewMatch && expiryMatch;
+  });
 
   // Pagination
   const totalPages = Math.ceil(filteredPolicies.length / itemsPerPage);
@@ -295,7 +323,7 @@ const AdminPolicies = () => {
           </div>
 
           {/* Pagination */}
-          {loading ? (
+          {filteredPolicies.length > itemsPerPage && (
             <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
               <div>
                 <p className="text-sm text-gray-700">
@@ -306,7 +334,7 @@ const AdminPolicies = () => {
                   of <span className="font-medium">{filteredPolicies.length}</span> results
                 </p>
               </div>
-              <div>
+              <div className="flex-1 flex justify-end">
                 <nav className="flex items-center space-x-1">
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
@@ -348,7 +376,7 @@ const AdminPolicies = () => {
                 </nav>
               </div>
             </div>
-          ) : null}
+          )}
         </div>
       </main>
       <div>
