@@ -4,9 +4,10 @@ import { Pencil, Trash2, Eye, Search } from 'lucide-react';
 import DeleteConfirmationModal from '../../components/DeleteConfirmationModal';
 import PolicyModal from "../../components/PolicyModal";
 import { format, isBefore, subDays, parseISO, addDays, isAfter } from 'date-fns';
-import axios from 'axios';
+import axios from 'axios'; // Import axios
 
 const AdminPolicies = () => {
+  // Replace context with local state and direct API calls
   const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -117,19 +118,19 @@ const AdminPolicies = () => {
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page on search
   };
 
   const handleFilterChange = (mode) => {
     setViewMode(mode);
-    setExpiryFilterDays('');
-    setCurrentPage(1);
+    setExpiryFilterDays(''); // Clear expiry filter when changing main view mode
+    setCurrentPage(1); // Reset to first page on filter change
   };
 
   const handleExpiryFilterChange = (e) => {
     const days = e.target.value;
     setExpiryFilterDays(days);
-    setViewMode('all');
+    setViewMode('all'); // Reset main view to 'all' when applying this filter
     setCurrentPage(1);
   };
 
@@ -283,6 +284,7 @@ const AdminPolicies = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
+                {/* Ensure policies are loaded before mapping */}
                 {loading ? (
                   <tr>
                     <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
@@ -291,7 +293,7 @@ const AdminPolicies = () => {
                   </tr>
                 ) : paginatedPolicies.length > 0 ? (
                   paginatedPolicies.map((policy) => (
-                    <tr key={policy._id || policy.id} className="hover:bg-gray-50">
+                    <tr key={policy.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {policy.policyNumber || policy.id}
                       </td>
@@ -305,9 +307,11 @@ const AdminPolicies = () => {
                         {policy.duration}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {/* Format startDate which is now a Date object */}
                         {policy.startDate ? format(policy.startDate, 'dd/MM/yyyy') : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {/* Format expiryDate which is now a Date object */}
                         {policy.expiryDate ? format(policy.expiryDate, 'dd/MM/yyyy') : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -333,7 +337,10 @@ const AdminPolicies = () => {
                           <button
                             onClick={() => {
                               console.log('Policy object:', policy);
-                              handleDeletePolicy(policy._id || policy.id);
+                              // Try customerId first since it looks like a MongoDB ObjectId
+                              const policyId = policy.customerId || policy._id || policy.id;
+                              console.log('Using ID for delete:', policyId);
+                              handleDeletePolicy(policyId);
                             }}
                             className="text-red-600 hover:text-red-900"
                             title="Delete Policy"
@@ -412,7 +419,6 @@ const AdminPolicies = () => {
           )}
         </div>
       </main>
-      
       <div>
         {modalOpen && selectedPolicy && (
           <PolicyModal
@@ -424,7 +430,6 @@ const AdminPolicies = () => {
           />
         )}
       </div>
-      
       <div>
         {deleteModalOpen && (
           <DeleteConfirmationModal
