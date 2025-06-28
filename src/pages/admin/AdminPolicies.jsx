@@ -145,12 +145,22 @@ const AdminPolicies = () => {
       try {
         setDeleteLoading(true);
         console.log('Deleting policy with ID:', selectedPolicyId);
-        await axios.delete(`${backendUrl}/api/policies/${selectedPolicyId}`);
-        await refreshPolicies();
-        alert('Policy deleted successfully!');
+        
+        // Use the new backend API endpoint
+        const response = await axios.delete(`${backendUrl}/api/policies/${selectedPolicyId}`);
+        
+        if (response.status === 200) {
+          console.log('Policy deleted successfully:', response.data);
+          await refreshPolicies();
+          alert('Policy deleted successfully!');
+        }
       } catch (error) {
         console.error("Error deleting policy:", error);
-        alert('Failed to delete policy. Please try again.');
+        if (error.response?.status === 404) {
+          alert('Policy not found. It may have already been deleted.');
+        } else {
+          alert('Failed to delete policy. Please try again.');
+        }
       } finally {
         setDeleteLoading(false);
         setDeleteModalOpen(false);
@@ -337,8 +347,8 @@ const AdminPolicies = () => {
                           <button
                             onClick={() => {
                               console.log('Policy object:', policy);
-                              // Try customerId first since it looks like a MongoDB ObjectId
-                              const policyId = policy.customerId || policy._id || policy.id;
+                              // Use the Firebase document ID - this should be the _id field or the Firestore-generated ID
+                              const policyId = policy._id || policy.id;
                               console.log('Using ID for delete:', policyId);
                               handleDeletePolicy(policyId);
                             }}
