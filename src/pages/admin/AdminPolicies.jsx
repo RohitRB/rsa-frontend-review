@@ -18,15 +18,16 @@ const AdminPolicies = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedPolicyFirestoreId, setSelectedPolicyFirestoreId] = useState(null);
   const [expiryFilterDays, setExpiryFilterDays] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const itemsPerPage = 5;
+  const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';
 
   // Fetch policies from backend
   useEffect(() => {
     const fetchPolicies = async () => {
       try {
         setLoading(true);
-        const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';
         const response = await axios.get(`${backendUrl}/api/policies`);
         
         // Ensure date fields are Date objects
@@ -52,6 +53,28 @@ const AdminPolicies = () => {
     };
     fetchPolicies();
   }, []);
+
+  const refreshPolicies = async () => {
+    try {
+      const response = await axios.get(`${backendUrl}/api/policies`);
+      
+      const toDate = (val) => {
+        if (!val) return new Date();
+        if (typeof val === 'string') return parseISO(val);
+        if (typeof val === 'object' && val._seconds) return new Date(val._seconds * 1000);
+        return new Date(val);
+      };
+      const formattedPolicies = response.data.map(p => ({
+        ...p,
+        createdAt: toDate(p.createdAt),
+        startDate: toDate(p.startDate),
+        expiryDate: toDate(p.expiryDate),
+      }));
+      setPolicies(formattedPolicies);
+    } catch (error) {
+      console.error("Error refreshing policies:", error);
+    }
+  };
 
   // Filter and search policies
   const filteredPolicies = policies.filter(policy => {
@@ -116,13 +139,22 @@ const AdminPolicies = () => {
     setDeleteModalOpen(true);
   };
 
-  const confirmDeletePolicy = () => {
-    // deletePolicy from PolicyContext takes the Firestore ID
+  const confirmDeletePolicy = async () => {
     if (selectedPolicyFirestoreId) {
-      // Implement delete logic here
+      try {
+        setDeleteLoading(true);
+        await axios.delete(`${backendUrl}/api/policies/${selectedPolicyFirestoreId}`);
+        await refreshPolicies();
+        alert('Policy deleted successfully!');
+      } catch (error) {
+        console.error("Error deleting policy:", error);
+        alert('Failed to delete policy. Please try again.');
+      } finally {
+        setDeleteLoading(false);
+        setDeleteModalOpen(false);
+        setSelectedPolicyFirestoreId(null);
+      }
     }
-    setDeleteModalOpen(false);
-    setSelectedPolicyFirestoreId(null);
   };
 
   // Generate page numbers for pagination
@@ -393,9 +425,10 @@ const AdminPolicies = () => {
       <div>
         {deleteModalOpen && (
           <DeleteConfirmationModal
-            policyId={selectedPolicyFirestoreId}
+            message="Are you sure you want to delete this policy? This action cannot be undone."
             onCancel={() => setDeleteModalOpen(false)}
             onConfirm={confirmDeletePolicy}
+            loading={deleteLoading}
           />
         )}
       </div>
