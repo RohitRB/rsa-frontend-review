@@ -4,10 +4,9 @@ import { Pencil, Trash2, Eye, Search } from 'lucide-react';
 import DeleteConfirmationModal from '../../components/DeleteConfirmationModal';
 import PolicyModal from "../../components/PolicyModal";
 import { format, isBefore, subDays, parseISO, addDays, isAfter } from 'date-fns';
-import axios from 'axios'; // Import axios
+import axios from 'axios';
 
 const AdminPolicies = () => {
-  // Replace context with local state and direct API calls
   const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,7 +15,7 @@ const AdminPolicies = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [selectedPolicyFirestoreId, setSelectedPolicyFirestoreId] = useState(null);
+  const [selectedPolicyId, setSelectedPolicyId] = useState(null);
   const [expiryFilterDays, setExpiryFilterDays] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -43,7 +42,7 @@ const AdminPolicies = () => {
           startDate: toDate(p.startDate),
           expiryDate: toDate(p.expiryDate),
         }));
-        console.log('Policies:', formattedPolicies); // DEBUG LOG
+        console.log('Policies:', formattedPolicies);
         setPolicies(formattedPolicies);
       } catch (error) {
         console.error("Error fetching policies:", error);
@@ -118,32 +117,34 @@ const AdminPolicies = () => {
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset to first page on search
+    setCurrentPage(1);
   };
 
   const handleFilterChange = (mode) => {
     setViewMode(mode);
-    setExpiryFilterDays(''); // Clear expiry filter when changing main view mode
-    setCurrentPage(1); // Reset to first page on filter change
+    setExpiryFilterDays('');
+    setCurrentPage(1);
   };
 
   const handleExpiryFilterChange = (e) => {
     const days = e.target.value;
     setExpiryFilterDays(days);
-    setViewMode('all'); // Reset main view to 'all' when applying this filter
+    setViewMode('all');
     setCurrentPage(1);
   };
 
-  const handleDeletePolicy = (firestoreId) => {
-    setSelectedPolicyFirestoreId(firestoreId);
+  const handleDeletePolicy = (policyId) => {
+    console.log('Policy to delete:', policyId);
+    setSelectedPolicyId(policyId);
     setDeleteModalOpen(true);
   };
 
   const confirmDeletePolicy = async () => {
-    if (selectedPolicyFirestoreId) {
+    if (selectedPolicyId) {
       try {
         setDeleteLoading(true);
-        await axios.delete(`${backendUrl}/api/policies/${selectedPolicyFirestoreId}`);
+        console.log('Deleting policy with ID:', selectedPolicyId);
+        await axios.delete(`${backendUrl}/api/policies/${selectedPolicyId}`);
         await refreshPolicies();
         alert('Policy deleted successfully!');
       } catch (error) {
@@ -152,7 +153,7 @@ const AdminPolicies = () => {
       } finally {
         setDeleteLoading(false);
         setDeleteModalOpen(false);
-        setSelectedPolicyFirestoreId(null);
+        setSelectedPolicyId(null);
       }
     }
   };
@@ -282,7 +283,6 @@ const AdminPolicies = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {/* Ensure policies are loaded before mapping */}
                 {loading ? (
                   <tr>
                     <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
@@ -291,7 +291,7 @@ const AdminPolicies = () => {
                   </tr>
                 ) : paginatedPolicies.length > 0 ? (
                   paginatedPolicies.map((policy) => (
-                    <tr key={policy.id} className="hover:bg-gray-50">
+                    <tr key={policy._id || policy.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {policy.policyNumber || policy.id}
                       </td>
@@ -305,11 +305,9 @@ const AdminPolicies = () => {
                         {policy.duration}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {/* Format startDate which is now a Date object */}
                         {policy.startDate ? format(policy.startDate, 'dd/MM/yyyy') : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {/* Format expiryDate which is now a Date object */}
                         {policy.expiryDate ? format(policy.expiryDate, 'dd/MM/yyyy') : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -333,7 +331,10 @@ const AdminPolicies = () => {
                             <Eye size={18} />
                           </button>
                           <button
-                            onClick={() => handleDeletePolicy(policy.firestorePolicyId || policy.id)}
+                            onClick={() => {
+                              console.log('Policy object:', policy);
+                              handleDeletePolicy(policy._id || policy.id);
+                            }}
                             className="text-red-600 hover:text-red-900"
                             title="Delete Policy"
                           >
@@ -411,6 +412,7 @@ const AdminPolicies = () => {
           )}
         </div>
       </main>
+      
       <div>
         {modalOpen && selectedPolicy && (
           <PolicyModal
@@ -422,6 +424,7 @@ const AdminPolicies = () => {
           />
         )}
       </div>
+      
       <div>
         {deleteModalOpen && (
           <DeleteConfirmationModal
