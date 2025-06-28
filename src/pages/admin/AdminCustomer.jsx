@@ -15,14 +15,17 @@ const AdminCustomer = () => {
   const [customerToDeleteId, setCustomerToDeleteId] = useState(null);
   const [editCustomerModalOpen, setEditCustomerModalOpen] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState(null);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const itemsPerPage = 5;
+
+  const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
         setLoading(true);
-        const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';
         const response = await axios.get(`${backendUrl}/api/customers`);
         setCustomers(response.data);
       } catch (error) {
@@ -33,6 +36,15 @@ const AdminCustomer = () => {
     };
     fetchCustomers();
   }, []);
+
+  const refreshCustomers = async () => {
+    try {
+      const response = await axios.get(`${backendUrl}/api/customers`);
+      setCustomers(response.data);
+    } catch (error) {
+      console.error("Error refreshing customers:", error);
+    }
+  };
 
   const filteredCustomers = customers.filter(customer => {
     const customerName = customer.customerName?.toLowerCase() || '';
@@ -68,10 +80,20 @@ const AdminCustomer = () => {
 
   const confirmDeleteCustomer = async () => {
     if (customerToDeleteId) {
-      console.log("Delete functionality to be implemented via API");
+      try {
+        setDeleteLoading(true);
+        await axios.delete(`${backendUrl}/api/customers/${customerToDeleteId}`);
+        await refreshCustomers();
+        alert('Customer deleted successfully!');
+      } catch (error) {
+        console.error("Error deleting customer:", error);
+        alert('Failed to delete customer. Please try again.');
+      } finally {
+        setDeleteLoading(false);
+        setDeleteModalOpen(false);
+        setCustomerToDeleteId(null);
+      }
     }
-    setDeleteModalOpen(false);
-    setCustomerToDeleteId(null);
   };
 
   const handleEditClick = (customer) => {
@@ -86,16 +108,36 @@ const AdminCustomer = () => {
 
   const handleUpdateCustomer = async () => {
     if (customerToEdit && customerToEdit.id) {
-      const { id, ...updatedFields } = customerToEdit;
-      console.log("Update functionality to be implemented via API");
-      setEditCustomerModalOpen(false);
-      setCustomerToEdit(null);
+      try {
+        setUpdateLoading(true);
+        const { id, ...updatedFields } = customerToEdit;
+        await axios.put(`${backendUrl}/api/customers/${id}`, updatedFields);
+        await refreshCustomers();
+        alert('Customer updated successfully!');
+        setEditCustomerModalOpen(false);
+        setCustomerToEdit(null);
+      } catch (error) {
+        console.error("Error updating customer:", error);
+        alert('Failed to update customer. Please try again.');
+      } finally {
+        setUpdateLoading(false);
+      }
     }
   };
 
   const handleViewClick = (customer) => {
     setSelectedCustomer(customer);
     setViewModalOpen(true);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-GB'); // dd/mm/yyyy format
+    } catch (error) {
+      return 'N/A';
+    }
   };
 
   const pageNumbers = [];
@@ -272,83 +314,107 @@ const AdminCustomer = () => {
 
         {viewModalOpen && selectedCustomer && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white p-6 rounded shadow-lg w-96">
+            <div className="bg-white p-6 rounded shadow-lg w-96 max-h-[80vh] overflow-y-auto">
               <h2 className="text-lg font-semibold mb-4">Customer Details</h2>
-              <p><strong>Name:</strong> {selectedCustomer.customerName}</p>
-              <p><strong>Email:</strong> {selectedCustomer.email}</p>
-              <p><strong>Phone:</strong> {selectedCustomer.phoneNumber}</p>
-              <p><strong>Address:</strong> {selectedCustomer.address}, {selectedCustomer.city}</p>
-              <p><strong>Vehicle:</strong> {selectedCustomer.vehicleNumber}</p>
-              <p><strong>Member Since:</strong> {selectedCustomer.createdAt ? format(selectedCustomer.createdAt, 'dd/MM/yyyy') : 'N/A'}</p>
+              <div className="space-y-3">
+                <p><strong>Name:</strong> {selectedCustomer.customerName}</p>
+                <p><strong>Email:</strong> {selectedCustomer.email}</p>
+                <p><strong>Phone:</strong> {selectedCustomer.phoneNumber}</p>
+                <p><strong>Address:</strong> {selectedCustomer.address}, {selectedCustomer.city}</p>
+                <p><strong>Vehicle:</strong> {selectedCustomer.vehicleNumber}</p>
+                <p><strong>Member Since:</strong> {formatDate(selectedCustomer.createdAt)}</p>
+              </div>
               <button
-                className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+                className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
                 onClick={() => setViewModalOpen(false)}
-              >Close</button>
+              >
+                Close
+              </button>
             </div>
           </div>
         )}
 
         {editCustomerModalOpen && customerToEdit && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white p-6 rounded shadow-lg w-96">
+            <div className="bg-white p-6 rounded shadow-lg w-96 max-h-[80vh] overflow-y-auto">
               <h2 className="text-lg font-semibold mb-4">Edit Customer</h2>
-              <label className="block text-sm font-medium text-gray-700">Customer Name</label>
-              <input
-                type="text"
-                name="customerName"
-                className="w-full mb-2 p-2 border border-gray-300 rounded-md"
-                value={customerToEdit.customerName}
-                onChange={handleEditChange}
-              />
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <input
-                type="email"
-                name="email"
-                className="w-full mb-2 p-2 border border-gray-300 rounded-md"
-                value={customerToEdit.email}
-                onChange={handleEditChange}
-              />
-              <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-              <input
-                type="text"
-                name="phoneNumber"
-                className="w-full mb-2 p-2 border border-gray-300 rounded-md"
-                value={customerToEdit.phoneNumber}
-                onChange={handleEditChange}
-              />
-              <label className="block text-sm font-medium text-gray-700">Address</label>
-              <input
-                type="text"
-                name="address"
-                className="w-full mb-2 p-2 border border-gray-300 rounded-md"
-                value={customerToEdit.address}
-                onChange={handleEditChange}
-              />
-              <label className="block text-sm font-medium text-gray-700">City</label>
-              <input
-                type="text"
-                name="city"
-                className="w-full mb-2 p-2 border border-gray-300 rounded-md"
-                value={customerToEdit.city}
-                onChange={handleEditChange}
-              />
-              <label className="block text-sm font-medium text-gray-700">Vehicle Number</label>
-              <input
-                type="text"
-                name="vehicleNumber"
-                className="w-full mb-2 p-2 border border-gray-300 rounded-md"
-                value={customerToEdit.vehicleNumber}
-                onChange={handleEditChange}
-              />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Customer Name</label>
+                  <input
+                    type="text"
+                    name="customerName"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    value={customerToEdit.customerName || ''}
+                    onChange={handleEditChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    value={customerToEdit.email || ''}
+                    onChange={handleEditChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                  <input
+                    type="text"
+                    name="phoneNumber"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    value={customerToEdit.phoneNumber || ''}
+                    onChange={handleEditChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Address</label>
+                  <input
+                    type="text"
+                    name="address"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    value={customerToEdit.address || ''}
+                    onChange={handleEditChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">City</label>
+                  <input
+                    type="text"
+                    name="city"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    value={customerToEdit.city || ''}
+                    onChange={handleEditChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Vehicle Number</label>
+                  <input
+                    type="text"
+                    name="vehicleNumber"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    value={customerToEdit.vehicleNumber || ''}
+                    onChange={handleEditChange}
+                  />
+                </div>
+              </div>
               <div className="flex space-x-2 mt-4">
                 <button
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleUpdateCustomer}
-                >Update</button>
+                  disabled={updateLoading}
+                >
+                  {updateLoading ? 'Updating...' : 'Update'}
+                </button>
                 <button
                   className="bg-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
                   onClick={() => setEditCustomerModalOpen(false)}
-                >Cancel</button>
+                  disabled={updateLoading}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
@@ -359,6 +425,7 @@ const AdminCustomer = () => {
             message="Are you sure you want to delete this customer?"
             onConfirm={confirmDeleteCustomer}
             onCancel={() => setDeleteModalOpen(false)}
+            loading={deleteLoading}
           />
         )}
       </main>

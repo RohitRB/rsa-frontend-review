@@ -1,5 +1,7 @@
+import React from 'react';
+import { X, AlertTriangle } from 'lucide-react';
 
- const DeleteConfirmationModal = ({ policyId, onCancel, onConfirm }) => {
+const DeleteConfirmationModal = ({ message, onCancel, onConfirm, loading = false }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
       <div className="bg-white w-full max-w-sm p-6 rounded-lg shadow-xl relative">
@@ -7,6 +9,7 @@
         <button
           className="absolute top-3 right-3 text-gray-400 hover:text-red-500"
           onClick={onCancel}
+          disabled={loading}
         >
           <X size={20} />
         </button>
@@ -18,30 +21,32 @@
 
         {/* Text */}
         <h2 className="text-xl font-semibold text-center text-gray-800 mb-2">
-          Delete Policy?
+          Confirm Delete
         </h2>
         <p className="text-sm text-gray-600 text-center mb-6">
-          Are you sure you want to permanently delete policy{" "}
-          <strong>{policyId}</strong>? This action cannot be undone.
+          {message}
         </p>
 
         {/* Buttons */}
         <div className="flex justify-center gap-4">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded bg-gray-200 text-gray-800 hover:bg-gray-300 transition"
+            className="px-4 py-2 rounded bg-gray-200 text-gray-800 hover:bg-gray-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
           >
             Cancel
           </button>
           <button
-            onClick={() => onConfirm(policyId)}
-            className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition"
+            onClick={onConfirm}
+            className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
           >
-            Yes, Delete
+            {loading ? 'Deleting...' : 'Yes, Delete'}
           </button>
         </div>
       </div>
     </div>
   );
 };
+
 export default DeleteConfirmationModal;
