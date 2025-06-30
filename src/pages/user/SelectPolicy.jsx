@@ -8,7 +8,7 @@ const SelectPolicy = () => {
     {
       id: "Kalyan_001",
       type: 'Standard Coverage',
-      price: 1, // Discounted Price
+      price: 2499, // Discounted Price
       originalPrice: 3500, // MRP
       duration: "1 Year",
       features: [
