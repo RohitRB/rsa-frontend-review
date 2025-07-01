@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../../components/Header';
-import { Pencil, Trash2, Eye, Search } from 'lucide-react';
+import { Pencil, Trash2, Eye, Search, Download } from 'lucide-react';
 import DeleteConfirmationModal from '../../components/DeleteConfirmationModal';
 import PolicyModal from "../../components/PolicyModal";
 import { format, isBefore, subDays, parseISO, addDays, isAfter } from 'date-fns';
 import axios from 'axios'; // Import axios
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const AdminPolicies = () => {
   // Replace context with local state and direct API calls
@@ -167,6 +169,80 @@ const AdminPolicies = () => {
         setSelectedPolicyId(null);
       }
     }
+  };
+
+  // Download policy as PDF
+  const downloadPolicy = (policy) => {
+    const doc = new jsPDF();
+    
+    // Add company logo/header
+    doc.setFillColor(0, 51, 153);
+    doc.rect(0, 0, 210, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text('RSA Policy Certificate', 105, 12, { align: 'center' });
+    
+    // Reset text color and add policy details
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    
+    const startDate = policy.startDate ? format(policy.startDate, 'dd/MM/yyyy') : 'N/A';
+    const expiryDate = policy.expiryDate ? format(policy.expiryDate, 'dd/MM/yyyy') : 'N/A';
+    const createdDate = policy.createdAt ? format(policy.createdAt, 'dd/MM/yyyy') : 'N/A';
+    
+    doc.autoTable({
+      startY: 30,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      head: [['Policy Details']],
+      body: [
+        ['Policy Number', policy.policyNumber || policy.id || 'N/A'],
+        ['Policy Type', policy.policyType || 'N/A'],
+        ['Customer Name', policy.customerName || 'N/A'],
+        ['Vehicle Number', policy.vehicleNumber || 'N/A'],
+        ['Start Date', startDate],
+        ['Expiry Date', expiryDate],
+        ['Duration', policy.duration || 'N/A'],
+        ['Amount Paid', `₹${policy.amount || 0}`],
+        ['Created Date', createdDate]
+      ]
+    });
+    
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 10,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      head: [['Customer Details']],
+      body: [
+        ['Email', policy.email || 'N/A'],
+        ['Phone', policy.phoneNumber || 'N/A'],
+        ['Address', `${policy.address || 'N/A'}, ${policy.city || 'N/A'}`]
+      ]
+    });
+    
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 10,
+      head: [['Service Features']],
+      body: [
+        ['24/7 Roadside Assistance', 'Yes'],
+        ['Nation Wide Towing', 'Yes'],
+        ['Flat Tire Assistance', 'Yes'],
+        ['Fuel Delivery', 'Yes'],
+        ['Battery Jump Start', 'Yes']
+      ],
+      theme: 'striped',
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [0, 51, 153], textColor: 255 }
+    });
+    
+    doc.setFontSize(10);
+    doc.text(
+      'Note: This is a computer-generated policy document and does not require a signature.',
+      20,
+      doc.lastAutoTable.finalY + 15
+    );
+    
+    doc.save(`Policy_${policy.policyNumber || policy.id || 'Admin'}.pdf`);
   };
 
   // Generate page numbers for pagination
@@ -343,6 +419,13 @@ const AdminPolicies = () => {
                             title="View Policy"
                           >
                             <Eye size={18} />
+                          </button>
+                          <button
+                            onClick={() => downloadPolicy(policy)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Download Policy"
+                          >
+                            <Download size={18} />
                           </button>
                           <button
                             onClick={() => {

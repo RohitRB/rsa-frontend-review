@@ -1,12 +1,15 @@
 import React from 'react';
+import { X, Download } from 'lucide-react';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const PolicyModal = ({ policy, onClose }) => {
-  const formatDate = (dateValue) => {
-    if (!dateValue) return 'N/A';
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
     try {
-      const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
-      return format(date, 'dd/MM/yyyy');
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      return format(dateObj, 'dd/MM/yyyy');
     } catch (error) {
       return 'N/A';
     }
@@ -23,6 +26,80 @@ const PolicyModal = ({ policy, onClose }) => {
       default:
         return 'bg-gray-100 text-gray-700';
     }
+  };
+
+  // Download policy as PDF
+  const downloadPolicy = () => {
+    const doc = new jsPDF();
+    
+    // Add company logo/header
+    doc.setFillColor(0, 51, 153);
+    doc.rect(0, 0, 210, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text('RSA Policy Certificate', 105, 12, { align: 'center' });
+    
+    // Reset text color and add policy details
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    
+    const startDate = formatDate(policy.startDate);
+    const expiryDate = formatDate(policy.expiryDate);
+    const createdDate = formatDate(policy.createdAt);
+    
+    doc.autoTable({
+      startY: 30,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      head: [['Policy Details']],
+      body: [
+        ['Policy Number', policy.policyNumber || policy.id || 'N/A'],
+        ['Policy Type', policy.policyType || 'N/A'],
+        ['Customer Name', policy.customerName || 'N/A'],
+        ['Vehicle Number', policy.vehicleNumber || 'N/A'],
+        ['Start Date', startDate],
+        ['Expiry Date', expiryDate],
+        ['Duration', policy.duration || 'N/A'],
+        ['Amount Paid', `₹${policy.amount || 0}`],
+        ['Created Date', createdDate]
+      ]
+    });
+    
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 10,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      head: [['Customer Details']],
+      body: [
+        ['Email', policy.email || 'N/A'],
+        ['Phone', policy.phoneNumber || 'N/A'],
+        ['Address', `${policy.address || 'N/A'}, ${policy.city || 'N/A'}`]
+      ]
+    });
+    
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 10,
+      head: [['Service Features']],
+      body: [
+        ['24/7 Roadside Assistance', 'Yes'],
+        ['Nation Wide Towing', 'Yes'],
+        ['Flat Tire Assistance', 'Yes'],
+        ['Fuel Delivery', 'Yes'],
+        ['Battery Jump Start', 'Yes']
+      ],
+      theme: 'striped',
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [0, 51, 153], textColor: 255 }
+    });
+    
+    doc.setFontSize(10);
+    doc.text(
+      'Note: This is a computer-generated policy document and does not require a signature.',
+      20,
+      doc.lastAutoTable.finalY + 15
+    );
+    
+    doc.save(`Policy_${policy.policyNumber || policy.id || 'Modal'}.pdf`);
   };
 
   return (
@@ -79,6 +156,12 @@ const PolicyModal = ({ policy, onClose }) => {
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
           >
             Close
+          </button>
+          <button 
+            onClick={downloadPolicy} 
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+          >
+            Download Policy
           </button>
         </div>
       </div>
