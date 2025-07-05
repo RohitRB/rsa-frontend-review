@@ -348,7 +348,10 @@ const AdminPolicies = () => {
                             <Eye size={18} />
                           </button>
                           <button
-                            onClick={() => generatePolicyPDF(policy)}
+                            onClick={() => {
+                              console.log('Policy object for PDF:', policy);
+                              generatePolicyPDF(policy);
+                            }}
                             className="text-green-600 hover:text-green-900"
                             title="Download Policy"
                           >
