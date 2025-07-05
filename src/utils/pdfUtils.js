@@ -27,6 +27,7 @@ export function generatePolicyPDF(policy) {
 
   const invoiceTitle = policy.policyType || 'RSA Policy Invoice';
   const companyName = 'Kalyan Enterprises';
+  const customerName = policy.customerName || 'N/A';
 
   // Header
   doc.setFillColor(0, 51, 153);
@@ -60,7 +61,7 @@ export function generatePolicyPDF(policy) {
     startY: doc.lastAutoTable.finalY + 6,
     head: [['PERSONAL DETAILS']],
     body: [
-      ['Customer Name', policy.customerName || 'N/A'],
+      ['Customer Name', customerName || 'N/A'],
       ['Mobile No', policy.phoneNumber || 'N/A'],
       ['Email', policy.email || 'N/A'],
       ['Address', `${policy.address || 'N/A'}, ${policy.city || ''}`],
