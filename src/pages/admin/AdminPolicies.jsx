@@ -430,8 +430,8 @@ const AdminPolicies = () => {
                           <button
                             onClick={() => {
                               console.log('Policy object:', policy);
-                              // Use the Firebase document ID - this should be the _id field or the Firestore-generated ID
-                              const policyId = policy._id || policy.id;
+                              // Use the unique policyNumber for deletion since id is the same for all policies
+                              const policyId = policy.policyNumber || policy._id || policy.id;
                               console.log('Using ID for delete:', policyId);
                               handleDeletePolicy(policyId);
                             }}
