@@ -17,7 +17,6 @@ const Policies = () => {
   const { showToast } = useToast();
   
   const fetchPolicies = async () => {
-    console.log()
     try {
       setLoading(true);
       const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';

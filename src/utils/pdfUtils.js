@@ -8,17 +8,6 @@ export function generatePolicyPDF(policy) {
     return;
   }
 
-  // Debug logs for all fields used in the PDF
-  console.log('PDF: customerName', policy.customerName);
-  console.log('PDF: phoneNumber', policy.phoneNumber);
-  console.log('PDF: email', policy.email);
-  console.log('PDF: address', policy.address);
-  console.log('PDF: city', policy.city);
-  console.log('PDF: amount', policy.amount);
-  console.log('PDF: vehicleNumber', policy.vehicleNumber);
-  console.log('PDF: startDate', policy.startDate);
-  console.log('PDF: expiryDate', policy.expiryDate);
-
   const doc = new jsPDF();
   const totalAmount = parseFloat(policy.amount);
   const startDatePdf = policy.startDate ? format(new Date(policy.startDate), 'dd/MM/yyyy') : 'N/A';
