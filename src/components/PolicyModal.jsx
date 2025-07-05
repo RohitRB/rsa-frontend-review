@@ -3,6 +3,7 @@ import { X, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { generatePolicyPDF } from '../utils/pdfUtils';
 
 const PolicyModal = ({ policy, onClose }) => {
   const formatDate = (date) => {
@@ -158,7 +159,7 @@ const PolicyModal = ({ policy, onClose }) => {
             Close
           </button>
           <button 
-            onClick={downloadPolicy} 
+            onClick={() => generatePolicyPDF(policy)} 
             className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
           >
             Download Policy

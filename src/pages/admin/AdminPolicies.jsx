@@ -7,6 +7,7 @@ import { format, isBefore, subDays, parseISO, addDays, isAfter } from 'date-fns'
 import axios from 'axios'; // Import axios
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { generatePolicyPDF } from '../utils/pdfUtils';
 
 const AdminPolicies = () => {
   // Replace context with local state and direct API calls
@@ -421,7 +422,7 @@ const AdminPolicies = () => {
                             <Eye size={18} />
                           </button>
                           <button
-                            onClick={() => downloadPolicy(policy)}
+                            onClick={() => generatePolicyPDF(policy)}
                             className="text-green-600 hover:text-green-900"
                             title="Download Policy"
                           >
