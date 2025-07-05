@@ -7,7 +7,7 @@ import { format, isBefore, subDays, parseISO, addDays, isAfter } from 'date-fns'
 import axios from 'axios'; // Import axios
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { generatePolicyPDF } from '../utils/pdfUtils';
+import { generatePolicyPDF } from '../../utils/pdfUtils';
 
 const AdminPolicies = () => {
   // Replace context with local state and direct API calls
