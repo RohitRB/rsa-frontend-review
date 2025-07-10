@@ -5,16 +5,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import Stepper from '../../components/Stepper';
 import { CheckCircle, XCircle, Mail, Phone, Home, Car, User, Download } from 'lucide-react';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { generatePolicyPDF, generatePolicyPDFAsBlob } from '../../utils/pdfUtils';
 import { format, addYears } from 'date-fns';
 import emailjs from '@emailjs/browser';
-
-// Runtime check to ensure autoTable is loaded
-if (!jsPDF.API.autoTable) {
-  // eslint-disable-next-line no-console
-  console.warn('⚠️ jsPDF autoTable plugin is not loaded! PDF export will not work.');
-}
 
 const Confirmation = () => {
   const location = useLocation();
@@ -24,7 +17,7 @@ const Confirmation = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [isEmailSent, setIsEmailSent] = useState(false);
   const [emailSendingError, setEmailSendingError] = useState('');
-  const [showEmailStatus, setShowEmailStatus] = useState(false); // <--- CRITICAL FIX: Declare this state variable
+  const [showEmailStatus, setShowEmailStatus] = useState(false);
   const emailSendAttemptedRef = useRef(false);
 
   useEffect(() => {
@@ -98,18 +91,45 @@ const Confirmation = () => {
         setShowEmailStatus(true);
         return;
       }
+
+      // Generate PDF for attachment
+      let pdfBlob = null;
+      try {
+        // Fetch fresh policy data from API for PDF generation
+        const policyId = policy.policyId || policy.policyNumber || policy.id;
+        const freshPolicyData = await fetchPolicyForPDF(policyId);
+        const policyForPDF = freshPolicyData || policy;
+        
+        // Generate PDF as blob using the utility function
+        pdfBlob = generatePolicyPDFAsBlob(policyForPDF);
+        
+        console.log('PDF generated successfully for email attachment');
+      } catch (error) {
+        console.error('Error generating PDF for email attachment:', error);
+        // Continue without attachment if PDF generation fails
+      }
       
       const customerParams = {
         customerName: policy.customerName || 'Customer',
         policyType: policy.policyType || 'RSA Policy',
-        policyId: policy.policyNumber || policy.id || 'N/A',
+        policyId: policy.policyId || policy.policyNumber || policy.id || 'N/A',
         expiryDate: formattedExpiryDate,
         amount: totalAmount ? totalAmount.toFixed(2) : '0.00',
         email: policy.email,
       };
 
       try {
-        await emailjs.send(serviceId, customerTemplateId, customerParams, publicKey);
+        // Send customer email with PDF attachment if available
+        if (pdfBlob) {
+          await emailjs.send(serviceId, customerTemplateId, customerParams, publicKey, {
+            attachment: {
+              name: `Policy_${policy.policyId || policy.policyNumber || policy.id}.pdf`,
+              data: pdfBlob
+            }
+          });
+        } else {
+          await emailjs.send(serviceId, customerTemplateId, customerParams, publicKey);
+        }
         console.log('✅ Customer Email sent successfully!');
         setIsEmailSent(true);
         setEmailSendingError('');
@@ -122,7 +142,7 @@ const Confirmation = () => {
       const adminParams = {
         customerName: policy.customerName || 'Customer',
         policyType: policy.policyType || 'RSA Policy',
-        policyId: policy.policyNumber || policy.id || 'N/A',
+        policyId: policy.policyId || policy.policyNumber || policy.id || 'N/A',
         expiryDate: formattedExpiryDate,
         amount: totalAmount ? totalAmount.toFixed(2) : '0.00',
       };
@@ -139,6 +159,45 @@ const Confirmation = () => {
 
     sendConfirmationEmails();
   }, [policy, paymentStatus]);
+
+  // Function to fetch policy data from API for PDF generation
+  const fetchPolicyForPDF = async (policyId) => {
+    try {
+      const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';
+      const response = await fetch(`${backendUrl}/api/policies/${policyId}`);
+      
+      if (response.ok) {
+        const policyData = await response.json();
+        console.log('Fetched policy data from API:', policyData);
+        return policyData;
+      } else {
+        console.error('Failed to fetch policy data from API:', response.status);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching policy data:', error);
+      return null;
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!policy) {
+      alert('Policy data not available to generate PDF.');
+      return;
+    }
+
+    // Try to fetch fresh data from API first
+    const policyId = policy.policyId || policy.policyNumber || policy.id;
+    console.log('Fetching policy with ID:', policyId);
+    
+    const freshPolicyData = await fetchPolicyForPDF(policyId);
+    
+    // Use fresh data if available, otherwise fall back to current policy data
+    const policyForPDF = freshPolicyData || policy;
+    
+    console.log('Generating PDF with policy data:', policyForPDF);
+    generatePolicyPDF(policyForPDF);
+  };
 
   const convertToWords = (amount) => {
     const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six',
@@ -165,110 +224,6 @@ const Confirmation = () => {
       return str.trim() + ' Only';
     };
     return inWords(amount);
-  };
-
-  const generatePDF = () => {
-    if (!policy) {
-      alert('Policy data not available to generate PDF.');
-      return;
-    }
-
-    const doc = new jsPDF();
-    const totalAmount = parseFloat(policy.amount); 
-    const startDatePdf = policy.startDate ? format(new Date(policy.startDate), 'dd/MM/yyyy') : 'N/A';
-    const expiryDatePdf = getFormattedExpiryDate(policy);
-    const amountInWords = convertToWords(totalAmount);
-
-    const invoiceTitle = policy.policyType || 'RSA Policy Invoice';
-    const companyName = 'Kalyan Enterprises';
-
-    doc.setFillColor(0, 51, 153);
-    doc.setTextColor(255);
-    doc.setFontSize(16);
-    doc.setFont(undefined, 'bold');
-    doc.rect(10, 10, 190, 10, 'F');
-    doc.text(companyName, doc.internal.pageSize.getWidth() / 2, 17, { align: 'center' });
-
-    doc.setFontSize(13);
-    doc.rect(10, 22, 190, 10, 'F');
-    doc.text(invoiceTitle, doc.internal.pageSize.getWidth() / 2, 29, { align: 'center' });
-
-    doc.setFontSize(11);
-    doc.setTextColor(0);
-
-    doc.autoTable({
-      startY: 35,
-      theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 3 },
-      head: [['Certificate Start Date', 'Certificate End Date', 'Vehicle Registration Number']],
-      body: [[startDatePdf, expiryDatePdf, policy.vehicleNumber || 'N/A']],
-    });
-
-    doc.autoTable({
-      startY: doc.lastAutoTable.finalY + 5,
-      head: [['PERSONAL DETAILS']],
-      theme: 'grid',
-      styles: { fillColor: [0, 51, 153], textColor: 255, halign: 'left', fontStyle: 'bold' },
-      headStyles: { fontSize: 12 }
-    });
-
-    doc.autoTable({
-      startY: doc.lastAutoTable.finalY,
-      theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 3 },
-      body: [
-        ['Customer Name', policy.customerName || 'N/A'],
-        ['Mobile No', policy.phoneNumber && policy.phoneNumber.trim() !== '' ? policy.phoneNumber : 'Not Available'],
-        ['Email', policy.email || 'NA'],
-        ['Address', `${policy.address || 'N/A'}, ${policy.city || 'N/A'}`]
-      ]
-    });
-
-    doc.autoTable({
-      startY: doc.lastAutoTable.finalY + 5,
-      head: [['PAYMENT DETAILS']],
-      theme: 'grid',
-      styles: { fillColor: [0, 51, 153], textColor: 255, halign: 'left', fontStyle: 'bold' },
-      headStyles: { fontSize: 12 }
-    });
-
-    doc.autoTable({
-      startY: doc.lastAutoTable.finalY,
-      theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 3 },
-      body: [
-        ['Plan Amount', `₹${totalAmount.toFixed(2)}`],
-        ['Total Amount Paid', `₹${totalAmount.toFixed(2)}`],
-        ['Amount In Words', amountInWords]
-      ]
-    });
-
-    const policyFeaturesForPdf = [
-      ['1', '24/7 Roadside Assistance', 'Yes'],
-      ['2', 'Nation Wide Towing', 'Yes'],
-      ['3', 'Flat Tire Assistance', 'Yes'],
-      ['4', 'Fuel Delivery', 'Yes'],
-      ['5', 'Battery Jump Start', 'Yes'],
-    ];
-
-    doc.autoTable({
-      startY: doc.lastAutoTable.finalY + 5,
-      head: [['S.No', 'Service Features', 'Included']],
-      body: policyFeaturesForPdf,
-      theme: 'striped',
-      styles: { fontSize: 10, cellPadding: 3 },
-      headStyles: { fillColor: [0, 51, 153], textColor: 255 },
-    });
-
-    doc.setFont(undefined, 'italic');
-    doc.setFontSize(10);
-    doc.text(
-      'Note: This is a computer-generated policy document and does not require a signature.',
-      20,
-      doc.lastAutoTable.finalY + 15
-    );
-
-    doc.save(`Policy_${policy.policyNumber || policy.id}.pdf`);
   };
 
   if (!policy) return null;
@@ -318,7 +273,7 @@ const Confirmation = () => {
                     <p>
                       <strong>Your policy will be active after 30 days from the date of purchase.</strong> 
                       During this period, your policy is being processed and will be fully functional from{' '}
-                      {policy.createdAt ? new Date(policy.createdAt).toLocaleDateString('en-IN', {
+                      {policy.purchaseDate || policy.createdAt ? new Date(policy.purchaseDate || policy.createdAt).toLocaleDateString('en-IN', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
@@ -347,8 +302,8 @@ const Confirmation = () => {
           <div className="bg-gray-50 p-6 rounded-md mb-8 text-left">
             <h2 className="text-xl font-semibold mb-4">Policy Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><p className="text-gray-600 text-sm">Policy Number:</p><p className="font-semibold">{policy.policyNumber || policy.id}</p></div>
-              <div><p className="text-gray-600 text-sm">Policy Type:</p><p className="font-semibold">{policy.policyType}</p></div>
+              <div><p className="text-gray-600 text-sm">Policy Number:</p><p className="font-semibold">{policy.policyId || policy.policyNumber || policy.id}</p></div>
+              <div><p className="text-gray-600 text-sm">Policy Type:</p><p className="font-semibold">{policy.policyType || 'RSA Policy'}</p></div>
               <div><p className="text-gray-600 text-sm">Customer Name:</p><p className="font-semibold">{policy.customerName || 'N/A'}</p></div>
               <div><p className="text-gray-600 text-sm">Vehicle Number:</p><p className="font-semibold">{policy.vehicleNumber || 'N/A'}</p></div>
               <div><p className="text-gray-600 text-sm">Valid Until:</p><p className="font-semibold">{getFormattedExpiryDate(policy)}</p></div>
@@ -368,7 +323,7 @@ const Confirmation = () => {
           <div className="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4">
             {isSuccess && (
               <button
-                onClick={generatePDF}
+                onClick={handleDownloadPDF}
                 className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
                 <Download className="mr-2 h-5 w-5" />
