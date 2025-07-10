@@ -69,13 +69,18 @@ const Confirmation = () => {
     const expiryDate = policyData.expiryDate ? format(new Date(policyData.expiryDate), 'dd/MM/yyyy') : 'N/A';
     const createdDate = policyData.createdAt ? format(new Date(policyData.createdAt), 'dd/MM/yyyy') : 'N/A';
     
+    // Add 30 days to startDate and expiryDate for the PDF
+    const startDateObj = policyData.startDate ? new Date(policyData.startDate) : null;
+    const expiryDateObj = policyData.expiryDate ? new Date(policyData.expiryDate) : null;
+    const startDatePlus30 = startDateObj ? format(addDays(startDateObj, 30), 'dd/MM/yyyy') : 'N/A';
+    const expiryDatePlus30 = expiryDateObj ? format(addDays(expiryDateObj, 30), 'dd/MM/yyyy') : 'N/A';
     // Certificate Table
     doc.autoTable({
       startY: 30,
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 3 },
-      head: [['Certificate Start Date', 'Certificate End Date', 'Vehicle Registration Number']],
-      body: [[startDate, expiryDate, policyData.vehicleNumber || 'N/A']],
+      head: [['Certificate Start Date (+30d)', 'Certificate End Date (+30d)', 'Vehicle Registration Number']],
+      body: [[startDatePlus30, expiryDatePlus30, policyData.vehicleNumber || 'N/A']],
       headStyles: { fillColor: [26, 188, 156], textColor: 255, fontStyle: 'bold' },
     });
     
