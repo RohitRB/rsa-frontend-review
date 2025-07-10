@@ -43,7 +43,7 @@ const AdminPolicies = () => {
     const startDate = policy.startDate ? format(new Date(policy.startDate), 'dd/MM/yyyy') : 'N/A';
     const expiryDate = policy.expiryDate ? format(new Date(policy.expiryDate), 'dd/MM/yyyy') : 'N/A';
     const createdDate = policy.createdAt ? format(new Date(policy.createdAt), 'dd/MM/yyyy') : 'N/A';
-    
+    const customerName = policy.customerName? policy.customerName : 'Rohit Rajnikant';
     // Certificate Table
     doc.autoTable({
       startY: 30,
@@ -61,7 +61,7 @@ const AdminPolicies = () => {
       styles: { fontSize: 10, cellPadding: 3 },
       head: [['PERSONAL DETAILS']],
       body: [
-        ['Customer Name', policy.customerName || 'N/A'],
+        ['Customer Name', customerName || 'N/A'],
         ['Mobile No', policy.phoneNumber || 'N/A'],
         ['Email', policy.email || 'N/A'],
         ['Address', `${policy.address || 'N/A'}, ${policy.city || 'N/A'}`],
@@ -74,7 +74,7 @@ const AdminPolicies = () => {
       startY: doc.lastAutoTable.finalY + 6,
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 3 },
-      head: [['PAYMENT DETAILS Rohit']],
+      head: [['PAYMENT DETAILS']],
       body: [
         ['Plan Amount', policy.amount ? `₹${policy.amount.toFixed(2)}` : 'N/A'],
         ['Total Amount Paid', policy.amount ? `₹${policy.amount.toFixed(2)}` : 'N/A'],
