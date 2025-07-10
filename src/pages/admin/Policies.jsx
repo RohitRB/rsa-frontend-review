@@ -83,7 +83,7 @@ const Policies = () => {
       styles: { fontSize: 10, cellPadding: 3 },
       head: [['PERSONAL DETAILS']],
       body: [
-        ['Customer Name', policy.customerName || 'N/A'],
+        ['Customer Name', 'Rohit Rajnikant' || 'N/A'],
         ['Mobile No', policy.phoneNumber || 'N/A'],
         ['Email', policy.email || 'N/A'],
         ['Address', `${policy.address || 'N/A'}, ${policy.city || 'N/A'}`],
