@@ -185,7 +185,7 @@ const Confirmation = () => {
   const fetchPolicyForPDF = async (policyId) => {
     try {
       const backendUrl = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:5000';
-      const response = await fetch(`${backendUrl}/api/policies/${policyId}`);
+      const response = await fetch(`${backendUrl}/api/policies/${policyId}`, { cache: 'no-store' });
       
       if (response.ok) {
         const policyData = await response.json();
