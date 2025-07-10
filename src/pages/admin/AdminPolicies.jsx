@@ -82,6 +82,20 @@ const AdminPolicies = () => {
       ],
       headStyles: { fillColor: [0, 51, 153], textColor: 255, fontStyle: 'bold', fontSize: 13 },
     });
+    // Payment Details
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 6,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      head: [['ROhit DETAILS']],
+      body: [
+        ['customer name', 'Test1'],
+        ['mobile', 'Test2'],
+        ['email', 'Test3'],
+        ['address', 'Test4'],
+      ],
+      headStyles: { fillColor: [0, 51, 153], textColor: 255, fontStyle: 'bold', fontSize: 13 },
+    });
     
     // Features
     doc.autoTable({
