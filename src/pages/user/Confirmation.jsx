@@ -6,7 +6,7 @@ import Header from '../../components/Header';
 import Stepper from '../../components/Stepper';
 import { CheckCircle, XCircle, Mail, Phone, Home, Car, User, Download } from 'lucide-react';
 import { generatePolicyPDF, generatePolicyPDFAsBlob } from '../../utils/pdfUtils';
-import { format, addYears } from 'date-fns';
+import { format, addYears, addDays } from 'date-fns';
 import emailjs from '@emailjs/browser';
 
 const Confirmation = () => {
@@ -59,6 +59,14 @@ const Confirmation = () => {
     if (!policyObj?.expiryDate) return 'N/A';
     const date = policyObj.expiryDate instanceof Date ? policyObj.expiryDate : new Date(policyObj.expiryDate);
     return format(date, 'dd/MM/yyyy');
+  };
+
+  // Helper to add 30 days to expiry date
+  const getFormattedExpiryDatePlus30 = (policyObj) => {
+    if (!policyObj?.expiryDate) return 'N/A';
+    const date = policyObj.expiryDate instanceof Date ? policyObj.expiryDate : new Date(policyObj.expiryDate);
+    const plus30 = addDays(date, 30);
+    return format(plus30, 'dd/MM/yyyy');
   };
 
   useEffect(() => {
@@ -273,11 +281,12 @@ const Confirmation = () => {
                     <p>
                       <strong>Your policy will be active after 30 days from the date of purchase.</strong> 
                       During this period, your policy is being processed and will be fully functional from{' '}
-                      {policy.purchaseDate || policy.createdAt ? new Date(policy.purchaseDate || policy.createdAt).toLocaleDateString('en-IN', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      }) : 'the activation date'}.
+                      {policy.purchaseDate || policy.createdAt
+                        ? format(
+                            addDays(new Date(policy.purchaseDate || policy.createdAt), 30),
+                            'dd MMMM yyyy'
+                          )
+                        : 'the activation date'}
                     </p>
                   </div>
                 </div>
@@ -306,7 +315,7 @@ const Confirmation = () => {
               <div><p className="text-gray-600 text-sm">Policy Type:</p><p className="font-semibold">{policy.policyType || 'RSA Policy'}</p></div>
               <div><p className="text-gray-600 text-sm">Customer Name:</p><p className="font-semibold">{policy.customerName || 'N/A'}</p></div>
               <div><p className="text-gray-600 text-sm">Vehicle Number:</p><p className="font-semibold">{policy.vehicleNumber || 'N/A'}</p></div>
-              <div><p className="text-gray-600 text-sm">Valid Until:</p><p className="font-semibold">{getFormattedExpiryDate(policy)}</p></div>
+              <div><p className="text-gray-600 text-sm">Valid Until:</p><p className="font-semibold">{getFormattedExpiryDatePlus30(policy)}</p></div>
               <div><p className="text-gray-600 text-sm">Amount Paid:</p><p className="font-semibold">₹{policy.amount ? policy.amount.toLocaleString() : '0'}</p></div>
             </div>
           </div>
