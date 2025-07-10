@@ -405,27 +405,13 @@ const Confirmation = () => {
     }
   };
 
-  const handleDownloadPDF = async () => {
+  // Revert to original: use in-memory policy data for PDF download
+  const handleDownloadPDF = () => {
     if (!policy) {
       alert('Policy data not available to generate PDF.');
       return;
     }
-    setDownloading(true);
-    try {
-      const policyId = policy.policyId || policy.policyNumber || policy.id;
-      const freshPolicyData = await fetchPolicyForPDF(policyId);
-      if (!freshPolicyData) {
-        alert('Failed to fetch policy data. Please try again.');
-        setDownloading(false);
-        return;
-      }
-      // When calling generatePolicyPDF or generatePolicyPDFAsBlob, just pass the policy object as received from API or state.
-      // The flattening/sanitization is now handled inside pdfUtils.js
-      generatePolicyPDF(freshPolicyData);
-    } catch (err) {
-      alert('An error occurred while downloading the policy. Please try again.');
-    }
-    setDownloading(false);
+    generatePolicyPDF(policy);
   };
 
   if (!policy) return null;
@@ -528,9 +514,8 @@ const Confirmation = () => {
               <button
                 onClick={handleDownloadPDF}
                 className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                disabled={downloading}
               >
-                {downloading ? "Generating PDF..." : (<><Download className="mr-2 h-5 w-5" /> Download Policy</>)}
+                <Download className="mr-2 h-5 w-5" /> Download Policy
               </button>
             )}
             <button
