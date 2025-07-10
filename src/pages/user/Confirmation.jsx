@@ -19,6 +19,7 @@ const Confirmation = () => {
   const [emailSendingError, setEmailSendingError] = useState('');
   const [showEmailStatus, setShowEmailStatus] = useState(false);
   const emailSendAttemptedRef = useRef(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const navState = location.state;
@@ -193,18 +194,20 @@ const Confirmation = () => {
       alert('Policy data not available to generate PDF.');
       return;
     }
-
-    // Try to fetch fresh data from API first
-    const policyId = policy.policyId || policy.policyNumber || policy.id;
-    console.log('Fetching policy with ID:', policyId);
-    
-    const freshPolicyData = await fetchPolicyForPDF(policyId);
-    
-    // Use fresh data if available, otherwise fall back to current policy data
-    const policyForPDF = freshPolicyData || policy;
-    
-    console.log('Generating PDF with policy data:', policyForPDF);
-    generatePolicyPDF(policyForPDF);
+    setDownloading(true);
+    try {
+      const policyId = policy.policyId || policy.policyNumber || policy.id;
+      const freshPolicyData = await fetchPolicyForPDF(policyId);
+      if (!freshPolicyData) {
+        alert('Failed to fetch policy data. Please try again.');
+        setDownloading(false);
+        return;
+      }
+      generatePolicyPDF(freshPolicyData);
+    } catch (err) {
+      alert('An error occurred while downloading the policy. Please try again.');
+    }
+    setDownloading(false);
   };
 
   const convertToWords = (amount) => {
@@ -334,9 +337,9 @@ const Confirmation = () => {
               <button
                 onClick={handleDownloadPDF}
                 className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                disabled={downloading}
               >
-                <Download className="mr-2 h-5 w-5" />
-                  Download Policy
+                {downloading ? "Generating PDF..." : (<><Download className="mr-2 h-5 w-5" /> Download Policy</>)}
               </button>
             )}
             <button
