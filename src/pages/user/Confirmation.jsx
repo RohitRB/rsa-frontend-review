@@ -123,6 +123,8 @@ const Confirmation = () => {
       // Generate PDF for attachment
       let pdfBlob = null;
       try {
+        // When calling generatePolicyPDF or generatePolicyPDFAsBlob, just pass the policy object as received from API or state.
+        // The flattening/sanitization is now handled inside pdfUtils.js
         pdfBlob = generatePolicyPDFAsBlob(policyForPDF);
         console.log('PDF generated successfully for email attachment');
       } catch (error) {
@@ -215,6 +217,8 @@ const Confirmation = () => {
         setDownloading(false);
         return;
       }
+      // When calling generatePolicyPDF or generatePolicyPDFAsBlob, just pass the policy object as received from API or state.
+      // The flattening/sanitization is now handled inside pdfUtils.js
       generatePolicyPDF(freshPolicyData);
     } catch (err) {
       alert('An error occurred while downloading the policy. Please try again.');

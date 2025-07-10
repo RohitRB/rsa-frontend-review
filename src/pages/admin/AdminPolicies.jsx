@@ -349,7 +349,8 @@ const AdminPolicies = () => {
                           </button>
                           <button
                             onClick={() => {
-                              console.log('Policy object for PDF:', policy);
+                              // When calling generatePolicyPDF, just pass the policy object as received from API or state.
+                              // The flattening/sanitization is now handled inside pdfUtils.js
                               generatePolicyPDF(policy);
                             }}
                             className="text-green-600 hover:text-green-900"

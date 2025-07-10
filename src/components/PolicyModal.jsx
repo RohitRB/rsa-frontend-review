@@ -158,6 +158,8 @@ const PolicyModal = ({ policy, onClose }) => {
           >
             Close
           </button>
+          {/* When calling generatePolicyPDF, just pass the policy object as received from API or state.
+              The flattening/sanitization is now handled inside pdfUtils.js */}
           <button 
             onClick={() => generatePolicyPDF(policy)} 
             className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"

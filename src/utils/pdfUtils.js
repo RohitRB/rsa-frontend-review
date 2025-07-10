@@ -9,30 +9,54 @@ function convertFirestoreTimestamp(ts) {
   return ts ? new Date(ts) : null;
 }
 
+function safeString(val) {
+  if (val === undefined || val === null) return 'N/A';
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val).trim() || 'N/A';
+}
+
+function flattenPolicy(policy) {
+  return {
+    ...policy,
+    customerName: safeString(policy.customerName),
+    phoneNumber: safeString(policy.phoneNumber),
+    email: safeString(policy.email),
+    address: safeString(policy.address),
+    city: safeString(policy.city),
+    policyType: safeString(policy.policyType),
+    vehicleNumber: safeString(policy.vehicleNumber),
+    amount: policy.amount !== undefined && policy.amount !== null ? Number(policy.amount) : 0,
+    duration: safeString(policy.duration),
+    status: safeString(policy.status),
+    // Add more fields as needed
+  };
+}
+
 export function generatePolicyPDF(policy) {
   if (!policy) {
     alert('Policy data not available to generate PDF.');
     return;
   }
+  const flatPolicy = flattenPolicy(policy);
 
   const doc = new jsPDF();
-  const totalAmount = parseFloat(policy.amount);
-  const startDateObj = convertFirestoreTimestamp(policy.startDate);
-  const expiryDateObj = convertFirestoreTimestamp(policy.expiryDate);
-  const purchaseDateObj = convertFirestoreTimestamp(policy.purchaseDate);
-  const createdAtObj = convertFirestoreTimestamp(policy.createdAt);
-  const updatedAtObj = convertFirestoreTimestamp(policy.updatedAt);
+  const totalAmount = flatPolicy.amount;
+  const startDateObj = convertFirestoreTimestamp(flatPolicy.startDate);
+  const expiryDateObj = convertFirestoreTimestamp(flatPolicy.expiryDate);
+  const purchaseDateObj = convertFirestoreTimestamp(flatPolicy.purchaseDate);
+  const createdAtObj = convertFirestoreTimestamp(flatPolicy.createdAt);
+  const updatedAtObj = convertFirestoreTimestamp(flatPolicy.updatedAt);
   const startDatePdf = startDateObj ? format(startDateObj, 'dd/MM/yyyy') : 'N/A';
   const expiryDatePdf = expiryDateObj ? format(expiryDateObj, 'dd/MM/yyyy') : 'N/A';
   const amountInWords = convertToWords(totalAmount);
 
   // Determine policy type and duration from available data
-  const policyType = policy.policyType || 'RSA Policy';
-  const duration = policy.duration || '1 Year'; // Default duration if not provided
+  const policyType = flatPolicy.policyType || 'RSA Policy';
+  const duration = flatPolicy.duration || '1 Year'; // Default duration if not provided
   
   const invoiceTitle = policyType;
   const companyName = 'Kalyan Enterprises';
-  const customerName = policy.customerName || 'N/A';
+  const customerName = flatPolicy.customerName || 'N/A';
 
   // Header
   doc.setFillColor(0, 51, 153);
@@ -54,7 +78,7 @@ export function generatePolicyPDF(policy) {
     body: [[
       startDatePdf,
       expiryDatePdf,
-      policy.vehicleNumber || 'N/A',
+      flatPolicy.vehicleNumber || 'N/A',
     ]],
     theme: 'grid',
     headStyles: { fillColor: [26, 188, 156], textColor: 255, fontStyle: 'bold' },
@@ -66,10 +90,10 @@ export function generatePolicyPDF(policy) {
     startY: doc.lastAutoTable.finalY + 6,
     head: [['PERSONAL DETAILS']],
     body: [
-      ['Customer Name', customerName || 'N/A'],
-      ['Mobile No', policy.phoneNumber || 'N/A'],
-      ['Email', policy.email || 'N/A'],
-      ['Address', `${policy.address || 'N/A'}, ${policy.city || ''}`],
+      ['Customer Name', flatPolicy.customerName],
+      ['Mobile No', flatPolicy.phoneNumber],
+      ['Email', flatPolicy.email],
+      ['Address', flatPolicy.address + (flatPolicy.city !== 'N/A' ? ', ' + flatPolicy.city : '')],
     ],
     theme: 'grid',
     headStyles: { fillColor: [0, 51, 153], textColor: 255, fontStyle: 'bold', fontSize: 13 },
@@ -116,7 +140,7 @@ export function generatePolicyPDF(policy) {
   );
 
   // Use policyId from API response, fallback to policyNumber or id
-  const policyIdentifier = policy.policyId || policy.policyNumber || policy.id;
+  const policyIdentifier = flatPolicy.policyId || flatPolicy.policyNumber || flatPolicy.id;
   doc.save(`Policy_${policyIdentifier}.pdf`);
 }
 
@@ -125,25 +149,26 @@ export function generatePolicyPDFAsBlob(policy) {
   if (!policy) {
     return null;
   }
+  const flatPolicy = flattenPolicy(policy);
 
   const doc = new jsPDF();
-  const totalAmount = parseFloat(policy.amount);
-  const startDateObj = convertFirestoreTimestamp(policy.startDate);
-  const expiryDateObj = convertFirestoreTimestamp(policy.expiryDate);
-  const purchaseDateObj = convertFirestoreTimestamp(policy.purchaseDate);
-  const createdAtObj = convertFirestoreTimestamp(policy.createdAt);
-  const updatedAtObj = convertFirestoreTimestamp(policy.updatedAt);
+  const totalAmount = flatPolicy.amount;
+  const startDateObj = convertFirestoreTimestamp(flatPolicy.startDate);
+  const expiryDateObj = convertFirestoreTimestamp(flatPolicy.expiryDate);
+  const purchaseDateObj = convertFirestoreTimestamp(flatPolicy.purchaseDate);
+  const createdAtObj = convertFirestoreTimestamp(flatPolicy.createdAt);
+  const updatedAtObj = convertFirestoreTimestamp(flatPolicy.updatedAt);
   const startDatePdf = startDateObj ? format(startDateObj, 'dd/MM/yyyy') : 'N/A';
   const expiryDatePdf = expiryDateObj ? format(expiryDateObj, 'dd/MM/yyyy') : 'N/A';
   const amountInWords = convertToWords(totalAmount);
 
   // Determine policy type and duration from available data
-  const policyType = policy.policyType || 'RSA Policy';
-  const duration = policy.duration || '1 Year'; // Default duration if not provided
+  const policyType = flatPolicy.policyType || 'RSA Policy';
+  const duration = flatPolicy.duration || '1 Year'; // Default duration if not provided
   
   const invoiceTitle = policyType;
   const companyName = 'Kalyan Enterprises';
-  const customerName = policy.customerName || 'N/A';
+  const customerName = flatPolicy.customerName || 'N/A';
 
   // Header
   doc.setFillColor(0, 51, 153);
@@ -165,7 +190,7 @@ export function generatePolicyPDFAsBlob(policy) {
     body: [[
       startDatePdf,
       expiryDatePdf,
-      policy.vehicleNumber || 'N/A',
+      flatPolicy.vehicleNumber || 'N/A',
     ]],
     theme: 'grid',
     headStyles: { fillColor: [26, 188, 156], textColor: 255, fontStyle: 'bold' },
@@ -177,10 +202,10 @@ export function generatePolicyPDFAsBlob(policy) {
     startY: doc.lastAutoTable.finalY + 6,
     head: [['PERSONAL DETAILS']],
     body: [
-      ['Customer Name', customerName || 'N/A'],
-      ['Mobile No', policy.phoneNumber || 'N/A'],
-      ['Email', policy.email || 'N/A'],
-      ['Address', `${policy.address || 'N/A'}, ${policy.city || ''}`],
+      ['Customer Name', flatPolicy.customerName],
+      ['Mobile No', flatPolicy.phoneNumber],
+      ['Email', flatPolicy.email],
+      ['Address', flatPolicy.address + (flatPolicy.city !== 'N/A' ? ', ' + flatPolicy.city : '')],
     ],
     theme: 'grid',
     headStyles: { fillColor: [0, 51, 153], textColor: 255, fontStyle: 'bold', fontSize: 13 },
