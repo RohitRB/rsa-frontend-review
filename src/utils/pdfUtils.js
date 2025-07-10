@@ -2,6 +2,13 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
 
+function convertFirestoreTimestamp(ts) {
+  if (ts && typeof ts === 'object' && '_seconds' in ts) {
+    return new Date(ts._seconds * 1000);
+  }
+  return ts ? new Date(ts) : null;
+}
+
 export function generatePolicyPDF(policy) {
   if (!policy) {
     alert('Policy data not available to generate PDF.');
@@ -10,8 +17,13 @@ export function generatePolicyPDF(policy) {
 
   const doc = new jsPDF();
   const totalAmount = parseFloat(policy.amount);
-  const startDatePdf = policy.startDate ? format(new Date(policy.startDate), 'dd/MM/yyyy') : 'N/A';
-  const expiryDatePdf = policy.expiryDate ? format(new Date(policy.expiryDate), 'dd/MM/yyyy') : 'N/A';
+  const startDateObj = convertFirestoreTimestamp(policy.startDate);
+  const expiryDateObj = convertFirestoreTimestamp(policy.expiryDate);
+  const purchaseDateObj = convertFirestoreTimestamp(policy.purchaseDate);
+  const createdAtObj = convertFirestoreTimestamp(policy.createdAt);
+  const updatedAtObj = convertFirestoreTimestamp(policy.updatedAt);
+  const startDatePdf = startDateObj ? format(startDateObj, 'dd/MM/yyyy') : 'N/A';
+  const expiryDatePdf = expiryDateObj ? format(expiryDateObj, 'dd/MM/yyyy') : 'N/A';
   const amountInWords = convertToWords(totalAmount);
 
   // Determine policy type and duration from available data
@@ -116,8 +128,13 @@ export function generatePolicyPDFAsBlob(policy) {
 
   const doc = new jsPDF();
   const totalAmount = parseFloat(policy.amount);
-  const startDatePdf = policy.startDate ? format(new Date(policy.startDate), 'dd/MM/yyyy') : 'N/A';
-  const expiryDatePdf = policy.expiryDate ? format(new Date(policy.expiryDate), 'dd/MM/yyyy') : 'N/A';
+  const startDateObj = convertFirestoreTimestamp(policy.startDate);
+  const expiryDateObj = convertFirestoreTimestamp(policy.expiryDate);
+  const purchaseDateObj = convertFirestoreTimestamp(policy.purchaseDate);
+  const createdAtObj = convertFirestoreTimestamp(policy.createdAt);
+  const updatedAtObj = convertFirestoreTimestamp(policy.updatedAt);
+  const startDatePdf = startDateObj ? format(startDateObj, 'dd/MM/yyyy') : 'N/A';
+  const expiryDatePdf = expiryDateObj ? format(expiryDateObj, 'dd/MM/yyyy') : 'N/A';
   const amountInWords = convertToWords(totalAmount);
 
   // Determine policy type and duration from available data
