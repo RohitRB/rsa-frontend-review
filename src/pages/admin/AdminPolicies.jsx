@@ -74,7 +74,7 @@ const AdminPolicies = () => {
       startY: doc.lastAutoTable.finalY + 6,
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 3 },
-      head: [['PAYMENT DETAILS']],
+      head: [['PAYMENT DETAILS','Values']],
       body: [
         ['Plan Amount', policy.amount ? `₹${policy.amount.toFixed(2)}` : 'N/A'],
         ['Total Amount Paid', policy.amount ? `₹${policy.amount.toFixed(2)}` : 'N/A'],
