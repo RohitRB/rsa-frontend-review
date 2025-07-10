@@ -102,7 +102,20 @@ const Policies = () => {
         ['Total Amount Paid', policy.amount ? `₹${policy.amount.toFixed(2)}` : 'N/A'],
         ['Amount In Words', convertToWords(policy.amount || 0)],
       ],
-      headStyles: { fillColor: [0, 51, 153], textColor: 255, fontStyle: 'bold', fontSize: 13 },
+      headStyles: { fillColor: [0, 51, 153], textColor: 255 },
+    });
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 6,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      head: [['Rohit DETAILS']],
+      body: [
+        ['customer name', policy.amount ? `₹${policy.amount.toFixed(2)}` : 'N/A'],
+        ['mobile', policy.phoneNumber ? policy.phoneNumber : 'N/A'],
+        ['email', policy.email ? policy.email : 'N/A'],
+        ['address', policy.address ? policy.address : 'N/A'],
+      ],
+      headStyles: { fillColor: [0, 51, 153], textColor: 255 },
     });
     
     // Features
