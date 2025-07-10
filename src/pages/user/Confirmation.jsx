@@ -101,30 +101,42 @@ const Confirmation = () => {
         return;
       }
 
+      // Fetch fresh policy data from API for PDF generation and email
+      let policyForPDF = null;
+      try {
+        const policyId = policy.policyId || policy.policyNumber || policy.id;
+        const freshPolicyData = await fetchPolicyForPDF(policyId);
+        if (!freshPolicyData) {
+          setEmailSendingError('Failed to fetch policy data from server. Email not sent.');
+          setIsEmailSent(false);
+          setShowEmailStatus(true);
+          return;
+        }
+        policyForPDF = freshPolicyData;
+      } catch (error) {
+        setEmailSendingError('Error fetching policy data from server. Email not sent.');
+        setIsEmailSent(false);
+        setShowEmailStatus(true);
+        return;
+      }
+
       // Generate PDF for attachment
       let pdfBlob = null;
       try {
-        // Fetch fresh policy data from API for PDF generation
-        const policyId = policy.policyId || policy.policyNumber || policy.id;
-        const freshPolicyData = await fetchPolicyForPDF(policyId);
-        const policyForPDF = freshPolicyData || policy;
-        
-        // Generate PDF as blob using the utility function
         pdfBlob = generatePolicyPDFAsBlob(policyForPDF);
-        
         console.log('PDF generated successfully for email attachment');
       } catch (error) {
         console.error('Error generating PDF for email attachment:', error);
         // Continue without attachment if PDF generation fails
       }
-      
+
       const customerParams = {
-        customerName: policy.customerName || 'Customer',
-        policyType: policy.policyType || 'RSA Policy',
-        policyId: policy.policyId || policy.policyNumber || policy.id || 'N/A',
+        customerName: policyForPDF.customerName || 'Customer',
+        policyType: policyForPDF.policyType || 'RSA Policy',
+        policyId: policyForPDF.policyId || policyForPDF.policyNumber || policyForPDF.id || 'N/A',
         expiryDate: formattedExpiryDate,
         amount: totalAmount ? totalAmount.toFixed(2) : '0.00',
-        email: policy.email,
+        email: policyForPDF.email,
       };
 
       try {
@@ -132,7 +144,7 @@ const Confirmation = () => {
         if (pdfBlob) {
           await emailjs.send(serviceId, customerTemplateId, customerParams, publicKey, {
             attachment: {
-              name: `Policy_${policy.policyId || policy.policyNumber || policy.id}.pdf`,
+              name: `Policy_${policyForPDF.policyId || policyForPDF.policyNumber || policyForPDF.id}.pdf`,
               data: pdfBlob
             }
           });
@@ -149,9 +161,9 @@ const Confirmation = () => {
       }
 
       const adminParams = {
-        customerName: policy.customerName || 'Customer',
-        policyType: policy.policyType || 'RSA Policy',
-        policyId: policy.policyId || policy.policyNumber || policy.id || 'N/A',
+        customerName: policyForPDF.customerName || 'Customer',
+        policyType: policyForPDF.policyType || 'RSA Policy',
+        policyId: policyForPDF.policyId || policyForPDF.policyNumber || policyForPDF.id || 'N/A',
         expiryDate: formattedExpiryDate,
         amount: totalAmount ? totalAmount.toFixed(2) : '0.00',
       };
