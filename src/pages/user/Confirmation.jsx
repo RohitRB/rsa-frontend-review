@@ -84,7 +84,7 @@ const Confirmation = () => {
       startY: doc.lastAutoTable.finalY + 6,
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 3 },
-      head: [['PERSONAL DETAILS']],
+      head: [['PERSONAL DETAILS','']],
       body: [
         ['Customer Name', policyData.customerName || 'N/A'],
         ['Mobile No', policyData.phoneNumber || 'N/A'],
@@ -99,7 +99,7 @@ const Confirmation = () => {
       startY: doc.lastAutoTable.finalY + 6,
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 3 },
-      head: [['PAYMENT DETAILS']],
+      head: [['PAYMENT DETAILS','']],
       body: [
         ['Plan Amount', policyData.amount ? `₹${policyData.amount.toFixed(2)}` : 'N/A'],
         ['Total Amount Paid', policyData.amount ? `₹${policyData.amount.toFixed(2)}` : 'N/A'],
