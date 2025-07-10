@@ -1,3 +1,59 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom button styles */
+.btn {
+  @apply px-4 py-2 rounded-md font-medium transition-colors duration-200;
+}
+
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700;
+}
+
+.btn-secondary {
+  @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+}
+
+.btn-success {
+  @apply bg-green-600 text-white hover:bg-green-700;
+}
+
+.btn-danger {
+  @apply bg-red-600 text-white hover:bg-red-700;
+}
+
+/* Status badge styles */
+.status-badge {
+  @apply px-2 py-1 text-xs font-semibold rounded-full;
+}
+
+.status-active {
+  @apply bg-green-100 text-green-800;
+}
+
+.status-expired {
+  @apply bg-red-100 text-red-800;
+}
+
+.status-expiring {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+/* Form input styles */
+.input-field {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+/* Data table styles */
+.data-table {
+  @apply text-sm text-left;
+}
+
+.data-table th {
+  @apply px-6 py-3 bg-gray-50 text-gray-600 uppercase tracking-wider;
+}
+
+.data-table td {
+  @apply px-6 py-4 whitespace-nowrap;
+}

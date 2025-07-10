@@ -3,7 +3,6 @@ import { X, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { generatePolicyPDF } from '../utils/pdfUtils';
 
 const PolicyModal = ({ policy, onClose }) => {
   const formatDate = (date) => {
@@ -29,7 +28,7 @@ const PolicyModal = ({ policy, onClose }) => {
     }
   };
 
-  // Download policy as PDF
+  // New direct PDF generation function
   const downloadPolicy = () => {
     const doc = new jsPDF();
     
@@ -48,51 +47,62 @@ const PolicyModal = ({ policy, onClose }) => {
     const expiryDate = formatDate(policy.expiryDate);
     const createdDate = formatDate(policy.createdAt);
     
+    // Certificate Table
     doc.autoTable({
       startY: 30,
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 3 },
-      head: [['Policy Details']],
-      body: [
-        ['Policy Number', policy.policyNumber || policy.id || 'N/A'],
-        ['Policy Type', policy.policyType || 'N/A'],
-        ['Customer Name', policy.customerName || 'N/A'],
-        ['Vehicle Number', policy.vehicleNumber || 'N/A'],
-        ['Start Date', startDate],
-        ['Expiry Date', expiryDate],
-        ['Duration', policy.duration || 'N/A'],
-        ['Amount Paid', `₹${policy.amount || 0}`],
-        ['Created Date', createdDate]
-      ]
+      head: [['Certificate Start Date', 'Certificate End Date', 'Vehicle Registration Number']],
+      body: [[startDate, expiryDate, policy.vehicleNumber || 'N/A']],
+      headStyles: { fillColor: [26, 188, 156], textColor: 255, fontStyle: 'bold' },
     });
     
+    // Personal Details
     doc.autoTable({
-      startY: doc.lastAutoTable.finalY + 10,
+      startY: doc.lastAutoTable.finalY + 6,
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 3 },
-      head: [['Customer Details']],
+      head: [['PERSONAL DETAILS']],
       body: [
+        ['Customer Name', policy.customerName || 'N/A'],
+        ['Mobile No', policy.phoneNumber || 'N/A'],
         ['Email', policy.email || 'N/A'],
-        ['Phone', policy.phoneNumber || 'N/A'],
-        ['Address', `${policy.address || 'N/A'}, ${policy.city || 'N/A'}`]
-      ]
+        ['Address', `${policy.address || 'N/A'}, ${policy.city || 'N/A'}`],
+      ],
+      headStyles: { fillColor: [0, 51, 153], textColor: 255, fontStyle: 'bold', fontSize: 13 },
     });
     
+    // Payment Details
     doc.autoTable({
-      startY: doc.lastAutoTable.finalY + 10,
-      head: [['Service Features']],
+      startY: doc.lastAutoTable.finalY + 6,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      head: [['PAYMENT DETAILS']],
       body: [
-        ['24/7 Roadside Assistance', 'Yes'],
-        ['Nation Wide Towing', 'Yes'],
-        ['Flat Tire Assistance', 'Yes'],
-        ['Fuel Delivery', 'Yes'],
-        ['Battery Jump Start', 'Yes']
+        ['Plan Amount', policy.amount ? `₹${policy.amount.toFixed(2)}` : 'N/A'],
+        ['Total Amount Paid', policy.amount ? `₹${policy.amount.toFixed(2)}` : 'N/A'],
+        ['Amount In Words', convertToWords(policy.amount || 0)],
+      ],
+      headStyles: { fillColor: [0, 51, 153], textColor: 255, fontStyle: 'bold', fontSize: 13 },
+    });
+    
+    // Features
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 6,
+      head: [['S.No', 'Service Features', 'Included']],
+      body: [
+        ['1', '24/7 Roadside Assistance', 'Yes'],
+        ['2', 'Nation Wide Towing', 'Yes'],
+        ['3', 'Flat Tire Assistance', 'Yes'],
+        ['4', 'Fuel Delivery', 'Yes'],
+        ['5', 'Battery Jump Start', 'Yes']
       ],
       theme: 'striped',
       styles: { fontSize: 10, cellPadding: 3 },
       headStyles: { fillColor: [0, 51, 153], textColor: 255 }
     });
     
+    doc.setFont(undefined, 'italic');
     doc.setFontSize(10);
     doc.text(
       'Note: This is a computer-generated policy document and does not require a signature.',
@@ -100,7 +110,36 @@ const PolicyModal = ({ policy, onClose }) => {
       doc.lastAutoTable.finalY + 15
     );
     
-    doc.save(`Policy_${policy.policyNumber || policy.id || 'Modal'}.pdf`);
+    const policyIdentifier = policy.policyId || policy.policyNumber || policy.id;
+    doc.save(`Policy_${policyIdentifier}.pdf`);
+  };
+
+  // Helper function to convert amount to words
+  const convertToWords = (amount) => {
+    const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six',
+      'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve',
+      'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen',
+      'Eighteen', 'Nineteen'];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty',
+      'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const inWords = (num) => {
+      if (typeof num !== 'number' || isNaN(num) || num < 0) return 'Invalid Amount';
+      num = Math.floor(num);
+      if (num === 0) return 'Zero Only';
+      if (num.toString().length > 9) return 'Overflow';
+
+      let n = ('000000000' + num).substr(-9).match(/.{1,2}/g);
+      if (!n) return '';
+      let str = '';
+      str += n[0] != 0 ? (a[Number(n[0])] || b[n[0][0]] + ' ' + a[n[0][1]]) + ' Crore ' : '';
+      str += n[1] != 0 ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + ' Lakh ' : '';
+      str += n[2] != 0 ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + ' Thousand ' : '';
+      str += n[3] != 0 ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + ' Hundred ' : '';
+      str += n[4] != 0 ? ((str != '') ? 'and ' : '') + (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + ' ' : '';
+      return str.trim() + ' Only';
+    };
+    return inWords(amount);
   };
 
   return (
@@ -161,7 +200,7 @@ const PolicyModal = ({ policy, onClose }) => {
           {/* When calling generatePolicyPDF, just pass the policy object as received from API or state.
               The flattening/sanitization is now handled inside pdfUtils.js */}
           <button 
-            onClick={() => generatePolicyPDF(policy)} 
+            onClick={() => downloadPolicy()} 
             className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
           >
             Download Policy
